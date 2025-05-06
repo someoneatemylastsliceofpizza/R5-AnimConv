@@ -48,6 +48,13 @@ struct Vector64
 	uint64_t z : 22;
 };
 
+struct Vector48  
+{  
+   short x;  
+   short y;  
+   short z; 
+};
+
 struct Vector3{
 	float x, y, z;
 
@@ -94,6 +101,7 @@ struct Vector3{
 		return (x == 0 && y == 0 && z == 0);
 	}
 };
+
 
 struct RadianEuler {
 	float x, y, z;

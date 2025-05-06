@@ -6,7 +6,7 @@
 #include <mdl/rseq.h>
 
 int main(int argc, char* argv[]) {  
-/*  if (argc != 2) {
+  if (argc != 2) {
       std::cerr << "Usage: " << argv[0] << " <input.mdl>" << std::endl;  
       return 1;  
   }  
@@ -16,8 +16,7 @@ int main(int argc, char* argv[]) {
   if (input_mdl.substr(input_mdl.find_last_of('.')) != ".mdl") {  
       std::cerr << "Error: Input file must have a .mdl extension." << std::endl;  
       return 1;  
-  }  */
-  std::string input_mdl = "C:\\mdl\\weapons\\bolo_sword\\ptpov_bolo_sword_ash.mdl";
+  } 
   std::filesystem::path file_path(input_mdl);
   std::string filename = file_path.filename().string().substr(0, file_path.filename().string().find_last_of("."));
   std::string output_dir = file_path.parent_path().string();

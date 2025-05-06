@@ -354,6 +354,20 @@ struct mstudiobone_t
 	int					unused[7];		// remove as appropriate
 };
 
+struct studioanimvalue_ptr_t {
+	short x;
+	short y;
+	short z;
+
+	inline bool IsAllZero()
+	{
+		if (x == 0 && y == 0 && z == 0)
+			return true;
+		else
+			return false;
+	}
+};
+
 struct studiohdr_t
 {
 	int					id;
@@ -610,6 +624,14 @@ namespace r5{
 	struct boneflagarray {
 		char flag;
 	};
+
+	struct studioanimvalue_ptr_t {
+		short offset : 13;
+		short flags : 3;
+		char idx1;
+		char idx2;
+	};
+
 	namespace v8
 	{
 		struct mstudiobone_t
