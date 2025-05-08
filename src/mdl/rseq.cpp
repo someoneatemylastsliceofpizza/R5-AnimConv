@@ -3,36 +3,42 @@
 #include <utils/stringtable.cpp>
 
 
-void ProcessAnimValue(int& read_offset, int& write_offset, mstudio_rle_anim_t* mdlAnimRle, r5::studioanimvalue_ptr_t* pRseqValue, int numframe, std::vector<int>& idx_offset) {
-	unsigned short* animvalue = PTR_FROM_IDX(unsigned short, g_model.pData, write_offset);
-	idx_offset.push_back((animvalue - (unsigned short*)pRseqValue));
+void ProcessAnimValue(int& read_offset, int& write_offset, mstudio_rle_anim_t* mdlAnimRle, r5::studioanimvalue_ptr_t* pRseqValue, int numframe, std::vector<int>& idx_offset, float newScale, float oldScale, float animMultiplier = 1) {
+	r5::mstudioanimvalue_t* rseqanimvalue = PTR_FROM_IDX(r5::mstudioanimvalue_t, g_model.pData, write_offset);
+	idx_offset.push_back(rseqanimvalue - (r5::mstudioanimvalue_t*)pRseqValue);
 
-	animvalue[0] = 0x0 | (numframe << 8); //animvalue metadata
+	rseqanimvalue[0].meta.valid = 0x0;
+	rseqanimvalue[0].meta.total = 0xFf; //TODO: idk what is this
 	write_offset += sizeof(short);
 
 	int total_frame = 0;
 	std::vector<int> read_anim_value;
 	do {
-		unsigned char* metadata = PTR_FROM_IDX(unsigned char, mdlAnimRle, read_offset);
-		for (int j = 0; j < metadata[0]; j++) read_anim_value.push_back(metadata[j + 1]);
-		for (int j = 0; j < metadata[1] - metadata[0]; j++) read_anim_value.push_back(0);
+		r5::mstudioanimvalue_t* animvalue = PTR_FROM_IDX(r5::mstudioanimvalue_t, mdlAnimRle, read_offset);
+		for (int j = 0; j < animvalue->meta.valid; j++) read_anim_value.push_back(animvalue[j + 1].value);
+		for (int j = 0; j < animvalue->meta.total - animvalue->meta.valid; j++) read_anim_value.push_back(animvalue[animvalue->meta.valid].value);//
 
-		read_offset += metadata[0] * 2 + 2;
-		total_frame += metadata[1];
+		read_offset += animvalue->meta.valid * 2 + 2;
+		total_frame += animvalue->meta.total;
 	} while (total_frame < numframe);
-
-	printf("  %d\n", read_anim_value.size());
-
+	printf("%d : ", read_anim_value.size());
 	for (int j = 0; j < numframe; j++) {
-		animvalue[j + 1] = read_anim_value.at(j);
+		rseqanimvalue[j + 1].value = ((double)read_anim_value.at(j) * animMultiplier *  oldScale / newScale);
 		write_offset += sizeof(short);
+		printf(" %d", rseqanimvalue[j + 1].value);
 	}
+	printf(" \n");
 }
 
 void ConvertMDL_RSEQ(char* mdl_buffer, std::string output_dir, std::string filename) {
 	studiohdr_t* pV49MdlHdr = reinterpret_cast<studiohdr_t*>(mdl_buffer);
+	studiohdr2_t* pV49MdlHdr2 = PTR_FROM_IDX(studiohdr2_t, mdl_buffer, sizeof(studiohdr_t));
 	mstudioseqdesc_t* pStudioSeqDesc = reinterpret_cast<mstudioseqdesc_t*>((mdl_buffer + pV49MdlHdr->localseqindex));
 	mstudioanimdesc_t* pStudioAnimDesc = reinterpret_cast<mstudioanimdesc_t*>((mdl_buffer + pV49MdlHdr->localanimindex));
+
+	mstudiolinearbone_t* linearboneindexes = PTR_FROM_IDX(mstudiolinearbone_t, mdl_buffer, pV49MdlHdr2->srcbonetransformindex);
+	Vector3* studioPosScale = PTR_FROM_IDX(Vector3, linearboneindexes, linearboneindexes->posscaleindex);
+	Vector3* studioRotScale = PTR_FROM_IDX(Vector3, linearboneindexes, linearboneindexes->rotscaleindex);
 
 	for (int seq_idx = 0; seq_idx < pV49MdlHdr->numlocalseq; seq_idx++) {
 		printf("Converting sequence %d/%d\n", seq_idx, pV49MdlHdr->numlocalseq);
@@ -122,7 +128,7 @@ void ConvertMDL_RSEQ(char* mdl_buffer, std::string output_dir, std::string filen
 		r5::v8::mstudioanimdesc_t* rAnimDesc = reinterpret_cast<r5::v8::mstudioanimdesc_t*>(g_model.pData);
 		*blend = g_model.pData - g_model.pBase;
 		rAnimDesc->fps = pStudioAnimDesc[seq_idx].fps;
-		rAnimDesc->flags = 0x20000 | pStudioAnimDesc[seq_idx].flags;
+		rAnimDesc->flags = (pStudioAnimDesc->numframes > 0 ? 0x20000 : 0x0) | pStudioAnimDesc[seq_idx].flags;
 		rAnimDesc->numframes = pStudioAnimDesc[seq_idx].numframes;
 		rAnimDesc->animindex = g_model.pData - g_model.pBase;
 		AddToStringTable((char*)rAnimDesc, &rAnimDesc->sznameindex, seq_gen_name.c_str());
@@ -133,7 +139,7 @@ void ConvertMDL_RSEQ(char* mdl_buffer, std::string output_dir, std::string filen
 		//boneflagarray (allocate)
 		rAnimDesc->animindex = g_model.pData - g_model.pBase - rAnimDesc->animindex;
 		char* boneflagarray = reinterpret_cast<char*>(g_model.pData);
-		std::vector<unsigned int> flaggedbones;
+		std::vector<unsigned int> flaggedbones(pV49MdlHdr->numbones + 1, 0);
 		g_model.pData += (size_t)(pV49MdlHdr->numbones + 1) / 2 + 1;
 
 		//anim data
@@ -145,7 +151,8 @@ void ConvertMDL_RSEQ(char* mdl_buffer, std::string output_dir, std::string filen
 			rseqAnimRle->flags = 0;
 			int read_offset = sizeof(mstudio_rle_anim_t);
 			int write_offset = sizeof(r5::mstudio_rle_anim_t);
-			int flags = mdlAnimRle->flags;
+			int flags = 0;
+			int tmp_r, tmp_p;
 
 			r5::studioanimvalue_ptr_t* pRseqRotV{};
 			r5::studioanimvalue_ptr_t* pRseqPosV{};
@@ -153,13 +160,23 @@ void ConvertMDL_RSEQ(char* mdl_buffer, std::string output_dir, std::string filen
 			studioanimvalue_ptr_t* pMdlPosV{};
 			printf("bone %d\n", i);
 
+			//FIX empty
+	/*		if (mdlAnimRle->flags & RTECH_ANIM_ANIMROT) {
+				pMdlRotV = PTR_FROM_IDX(studioanimvalue_ptr_t, mdlAnimRle, read_offset);
+				if (pMdlRotV->IsAllZero()) continue;
+			}
+			if (mdlAnimRle->flags & RTECH_ANIM_ANIMPOS) {
+				pMdlPosV = PTR_FROM_IDX(studioanimvalue_ptr_t, mdlAnimRle, read_offset);
+				if (pMdlPosV->IsAllZero()) continue;
+			}*/
+
+
 			//alloc posscale
-			if (flags & RTECH_ANIM_ANIMPOS) {
+			if (mdlAnimRle->flags & RTECH_ANIM_ANIMPOS) {
 				float* posscale = PTR_FROM_IDX(float, g_model.pData, write_offset);
-				*posscale = 1. / 256.; //TODO: get it from linearbone
+				*posscale = studioPosScale[i].Min();
 				write_offset += 4;
 			}
-
 			//raw data
 			if (mdlAnimRle->flags & RTECH_ANIM_RAWPOS) {
 				Vector48* rseqRawpos = PTR_FROM_IDX(Vector48, g_model.pData, write_offset);
@@ -167,88 +184,80 @@ void ConvertMDL_RSEQ(char* mdl_buffer, std::string output_dir, std::string filen
 				rseqRawpos->x = mdlRawpos->x;
 				rseqRawpos->y = mdlRawpos->y;
 				rseqRawpos->z = mdlRawpos->z;
+				flags |= 0x1;
 				write_offset += 6;
 			}
 
 			if (mdlAnimRle->flags & STUDIO_ANIM_RAWROT) {
-				flags ^= 0x22;
-				Quaternion64 * rseqRawrot= PTR_FROM_IDX(Quaternion64, g_model.pData, write_offset);
+				Quaternion64* rseqRawrot = PTR_FROM_IDX(Quaternion64, g_model.pData, write_offset);
 				Quaternion64* mdlRawrot = PTR_FROM_IDX(Quaternion64, mdlAnimRle, read_offset);
 				rseqRawrot->x = mdlRawrot->x;
 				rseqRawrot->y = mdlRawrot->y;
 				rseqRawrot->z = mdlRawrot->z;
 				rseqRawrot->wneg = mdlRawrot->wneg;
+				flags |= 0x2;
 				write_offset += 8;
-
 			}
+			
 			//animvalue_ptr
 			if (mdlAnimRle->flags & RTECH_ANIM_ANIMROT) {
-				flags ^= RTECH_ANIM_ANIMROT; 
-				flags |= RTECH_ANIM_RAWROT;
 				pMdlRotV = PTR_FROM_IDX(studioanimvalue_ptr_t, mdlAnimRle, read_offset);
+				tmp_r = read_offset;
+				//pRseqRotV = PTR_FROM_IDX(r5::studioanimvalue_ptr_t, g_model.pData, write_offset);
 				read_offset += sizeof(studioanimvalue_ptr_t);
-
-				pRseqRotV = PTR_FROM_IDX(r5::studioanimvalue_ptr_t, g_model.pData, write_offset);
-				printf("   rotv: %d %d %d\n", pMdlRotV->x, pMdlRotV->y, pMdlRotV->z);
-				write_offset += sizeof(r5::studioanimvalue_ptr_t);
+				if (!pMdlRotV->IsAllZero()) {
+					printf("   rotv: %d %d %d\n", pMdlRotV->x, pMdlRotV->y, pMdlRotV->z);
+					flags |= 0x2;
+					//write_offset += sizeof(r5::studioanimvalue_ptr_t);
+				}
 			}
 			if (mdlAnimRle->flags & RTECH_ANIM_ANIMPOS) {
-				flags ^= RTECH_ANIM_ANIMPOS;
-				flags |= RTECH_ANIM_RAWPOS;
 				pMdlPosV = PTR_FROM_IDX(studioanimvalue_ptr_t, mdlAnimRle, read_offset);
+				tmp_p = read_offset;
+				//pRseqPosV = PTR_FROM_IDX(r5::studioanimvalue_ptr_t, g_model.pData, write_offset);
 				read_offset += sizeof(studioanimvalue_ptr_t);
+				if (!pMdlPosV->IsAllZero()) {
+					printf("   posv: %d %d %d\n", pMdlPosV->x, pMdlPosV->y, pMdlPosV->z);
+					flags |= 0x1;
+					//write_offset += sizeof(r5::studioanimvalue_ptr_t);
+				}
+			}
 
+
+			if (mdlAnimRle->flags & RTECH_ANIM_ANIMPOS && !pMdlPosV->IsAllZero()) {
 				pRseqPosV = PTR_FROM_IDX(r5::studioanimvalue_ptr_t, g_model.pData, write_offset);
-				printf("   posv: %d %d %d\n", pMdlPosV->x, pMdlPosV->y, pMdlPosV->z);
 				write_offset += sizeof(r5::studioanimvalue_ptr_t);
 			}
 
-			//write animvalue
-			std::vector<int> idx_offset;
-			if (pMdlRotV != nullptr && !pMdlRotV->IsAllZero() && mdlAnimRle->flags & RTECH_ANIM_ANIMROT && pRseqRotV != nullptr && pMdlRotV != nullptr) {
-				rseqAnimRle->flags = 0x2;
-				if (pMdlRotV->x) {
-					pRseqRotV->flags |= 4;
-					ProcessAnimValue(read_offset, write_offset, mdlAnimRle, pRseqRotV, pStudioAnimDesc[seq_idx].numframes, idx_offset);
-				}
-				else idx_offset.push_back(0);
-				if (pMdlRotV->y) {
-					pRseqRotV->flags |= 2;
-					ProcessAnimValue(read_offset, write_offset, mdlAnimRle, pRseqRotV, pStudioAnimDesc[seq_idx].numframes, idx_offset);
-				}
-				else idx_offset.push_back(0);
-				if (pMdlRotV->z) {
-					pRseqRotV->flags |= 1;
-					ProcessAnimValue(read_offset, write_offset, mdlAnimRle, pRseqRotV, pStudioAnimDesc[seq_idx].numframes, idx_offset);
-				}
-				else idx_offset.push_back(0);
-				idx_offset.push_back(0);
-				idx_offset.push_back(0);
-
-				while (!idx_offset.empty() && idx_offset.front() == 0) idx_offset.erase(idx_offset.begin()); //remove 0s in the front
-
-				pRseqRotV->offset = idx_offset.at(0) * 2;
-				pRseqRotV->idx1 = max(idx_offset.at(1) - idx_offset.at(0), 0);
-				pRseqRotV->idx2 = max(idx_offset.at(2) - idx_offset.at(0), 0);
-				
+			if (mdlAnimRle->flags & RTECH_ANIM_ANIMROT && !pMdlRotV->IsAllZero()) {
+				pRseqRotV = PTR_FROM_IDX(r5::studioanimvalue_ptr_t, g_model.pData, write_offset);
+				write_offset += sizeof(r5::studioanimvalue_ptr_t);
 			}
 
-			idx_offset.clear();
-			if (pMdlPosV != nullptr && !pMdlPosV->IsAllZero() && mdlAnimRle->flags & RTECH_ANIM_ANIMPOS && pRseqPosV != nullptr && pMdlPosV != nullptr) {
+			/*studioRotScale[i].Print();
+			
+			studioPosScale[i].Print();*/
+
+			//TODO: fix read offset (mdl [rot -> pos], rmdl [pos -> rot])
+			//write animvalue
+			std::vector<int> idx_offset;
+			if (pMdlPosV != nullptr && !pMdlPosV->IsAllZero() && mdlAnimRle->flags & RTECH_ANIM_ANIMPOS && pRseqPosV != nullptr) {
+				read_offset = tmp_p + pMdlPosV->FirstThatIsNonZero();
+				printf("writing pos: %d\n", tmp_p);
 				rseqAnimRle->flags |= 0x4;
 				if (pMdlPosV->x) {
 					pRseqPosV->flags |= 4;
-					ProcessAnimValue(read_offset, write_offset, mdlAnimRle, pRseqPosV, pStudioAnimDesc[seq_idx].numframes, idx_offset);
+					ProcessAnimValue(read_offset, write_offset, mdlAnimRle, pRseqPosV, pStudioAnimDesc[seq_idx].numframes, idx_offset, studioPosScale[i].Min(), studioPosScale[i].x);
 				}
 				else idx_offset.push_back(0);
 				if (pMdlPosV->y) {
 					pRseqPosV->flags |= 2;
-					ProcessAnimValue(read_offset, write_offset, mdlAnimRle, pRseqPosV, pStudioAnimDesc[seq_idx].numframes, idx_offset);
+					ProcessAnimValue(read_offset, write_offset, mdlAnimRle, pRseqPosV, pStudioAnimDesc[seq_idx].numframes, idx_offset, studioPosScale[i].Min(), studioPosScale[i].y);
 				}
 				else idx_offset.push_back(0);
 				if (pMdlPosV->z) {
 					pRseqPosV->flags |= 1;
-					ProcessAnimValue(read_offset, write_offset, mdlAnimRle, pRseqPosV, pStudioAnimDesc[seq_idx].numframes, idx_offset);
+					ProcessAnimValue(read_offset, write_offset, mdlAnimRle, pRseqPosV, pStudioAnimDesc[seq_idx].numframes, idx_offset, studioPosScale[i].Min(), studioPosScale[i].z);
 				}
 				else idx_offset.push_back(0);
 				idx_offset.push_back(0);
@@ -263,16 +272,47 @@ void ConvertMDL_RSEQ(char* mdl_buffer, std::string output_dir, std::string filen
 				pRseqPosV->idx2 = max(idx_offset.at(2) - idx_offset.at(0), 0);
 
 			}
+			
 
-			flaggedbones.push_back(flags);
+			idx_offset.clear();
+			float animmul = 3.1415926535f;
+			if (pMdlRotV != nullptr && !pMdlRotV->IsAllZero() && mdlAnimRle->flags & RTECH_ANIM_ANIMROT && pRseqRotV != nullptr) {
+				read_offset = tmp_r + pMdlRotV->FirstThatIsNonZero();
+				printf("writing rot: %d\n", tmp_r);
+				rseqAnimRle->flags |= 0x2;
+				if (pMdlRotV->x) {
+					pRseqRotV->flags |= 4;
+					ProcessAnimValue(read_offset, write_offset, mdlAnimRle, pRseqRotV, pStudioAnimDesc[seq_idx].numframes, idx_offset, 0.00019175345f, studioRotScale[i].x, animmul);
+				}
+				else idx_offset.push_back(0);
+				if (pMdlRotV->y) {
+					pRseqRotV->flags |= 2;
+					ProcessAnimValue(read_offset, write_offset, mdlAnimRle, pRseqRotV, pStudioAnimDesc[seq_idx].numframes, idx_offset, 0.00019175345f, studioRotScale[i].y, animmul);
+				}
+				else idx_offset.push_back(0);
+				if (pMdlRotV->z) {
+					pRseqRotV->flags |= 1;
+					ProcessAnimValue(read_offset, write_offset, mdlAnimRle, pRseqRotV, pStudioAnimDesc[seq_idx].numframes, idx_offset, 0.00019175345f, studioRotScale[i].z, animmul);
+				}
+				else idx_offset.push_back(0);
+				idx_offset.push_back(0);
+				idx_offset.push_back(0);
+
+				while (!idx_offset.empty() && idx_offset.front() == 0) idx_offset.erase(idx_offset.begin()); //remove 0s in the front
+
+				pRseqRotV->offset = idx_offset.at(0) * 2;
+				pRseqRotV->idx1 = max(idx_offset.at(1) - idx_offset.at(0), 0);
+				pRseqRotV->idx2 = max(idx_offset.at(2) - idx_offset.at(0), 0);
+
+			}
+			//printf("flag:         %d\n", flags);
+			flaggedbones.at(mdlAnimRle->bone) = flags;
 			rseqAnimRle->size = write_offset;
 			g_model.pData += write_offset;
 			anim_block_offset += mdlAnimRle->nextoffset;
 
 			if (mdlAnimRle->nextoffset == 0) break;
 		}
-		flaggedbones.push_back(0);
-
 
 		//boneflagarray (write)
 		for (int i = 0; i < (flaggedbones.size()) / 2; i++) {
@@ -309,27 +349,3 @@ void ConvertMDL_RSEQ(char* mdl_buffer, std::string output_dir, std::string filen
 		printf("Done!\n");
 	}
 }
-
-//unsigned short* animvalue = PTR_FROM_IDX(unsigned short, g_model.pData, write_offset);
-//idx_offset.push_back((animvalue - (unsigned short*)pRseqRotV));
-
-//animvalue[0] = 0x0 | (pStudioAnimDesc->numframes << 8); //animvalue metadata
-//write_offset += sizeof(short);
-
-//int total_frame = 0;
-//std::vector<int> read_anim_value;
-//do {
-//	unsigned char* metadata = PTR_FROM_IDX(unsigned char, mdlAnimRle, read_offset);
-//	for (int j = 0; j < metadata[0]; j++) read_anim_value.push_back(metadata[j + 1]);
-//	for (int j = 0; j < metadata[1] - metadata[0]; j++) read_anim_value.push_back(0);
-
-//	read_offset += metadata[0] * 2 + 2;
-//	total_frame += metadata[1];
-//} while (total_frame < pStudioAnimDesc->numframes);
-
-//printf("  %d\n", read_anim_value.size());
-
-//for (int j = 0; j < pStudioAnimDesc->numframes; j++) {
-//	animvalue[j + 1] = read_anim_value.at(j);
-//	write_offset += sizeof(short);
-//}

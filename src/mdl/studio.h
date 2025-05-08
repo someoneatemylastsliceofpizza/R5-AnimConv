@@ -366,6 +366,13 @@ struct studioanimvalue_ptr_t {
 		else
 			return false;
 	}
+
+    inline short FirstThatIsNonZero() {
+		if (x != 0) return x;
+		if (y != 0) return y;
+		if (z != 0) return z;
+		return 0;
+    }
 };
 
 struct studiohdr_t
@@ -590,7 +597,7 @@ namespace r5{
 		struct{
 			char	valid;
 			char	total;
-		} num;
+		} meta;
 		short		value;
 	};
 

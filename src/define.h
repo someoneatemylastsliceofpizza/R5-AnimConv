@@ -100,6 +100,21 @@ struct Vector3{
 	{
 		return (x == 0 && y == 0 && z == 0);
 	}
+
+    inline float Min() {
+		return min(x, min(y, z));
+    }
+
+	inline float Max() {
+		return max(x, max(y, z));
+	}
+
+	inline float Get(int xyz) {
+		if (xyz == 0) return x;
+		if (xyz == 1) return y;
+		if (xyz == 2) return z;
+		return 0;
+	}
 };
 
 

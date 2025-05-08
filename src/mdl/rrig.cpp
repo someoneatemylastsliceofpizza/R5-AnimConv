@@ -119,7 +119,7 @@ void ConvertMDL_RRIG(char* mdl_buffer, std::string output_dir, std::string filen
 		g_model.pData += sizeof(int);
 		for (int j = 0; j < nodecount; j++) {
 			v54nodedata[offset] = v49nodedata_buffer.at(j);
-			v54nodedata[offset + 1] = 0xFF;
+			v54nodedata[offset + 1] = 0x00; // need to write it later (010 editor)
 			offset += 2;
 			g_model.pData += sizeof(int);
 		};
