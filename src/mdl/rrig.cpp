@@ -1,6 +1,7 @@
 #include <mdl/rrig.h>
 #include <mdl/studio.h>
 #include <utils/stringtable.cpp>
+#include <filesystem>
 
 void WritePreHeader(r5::v8::studiohdr_t* pV54RrigHdr, studiohdr_t* v49MdlHdr);
 
@@ -21,7 +22,12 @@ void ConvertMDL_RRIG(char* mdl_buffer, std::string output_dir, std::string filen
 
 	std::string model_name = pV49MdlHdr->name;
 	model_name = "animrig/" + model_name.substr(model_name.find('/') + 1, model_name.rfind('.') - model_name.find('/') - 1) + ".rrig";
-	std::ofstream outRrig(output_dir + "\\" + filename + ".rrig", std::ios::out | std::ios::binary);
+    
+	std::string model_dir = model_name.substr(0, model_name.find_last_of("\\") + 1);
+    std::replace(model_dir.begin(), model_dir.end(), '/', '\\');
+
+    std::filesystem::create_directories(output_dir + "\\" + model_dir);
+	std::ofstream outRrig(output_dir + "\\" + model_dir + "\\" + filename + ".rrig", std::ios::out | std::ios::binary);
 
 	memcpy_s(&pV54RrigHdr->name, 64, model_name.c_str(), min(model_name.length(), 64));
 	AddToStringTable((char*)pV54RrigHdr, &pV54RrigHdr->sznameindex, model_name.c_str());
@@ -29,7 +35,6 @@ void ConvertMDL_RRIG(char* mdl_buffer, std::string output_dir, std::string filen
 
 	// Bones
 	pV54RrigHdr->boneindex = g_model.pData - g_model.pBase;
-	unsigned char iklinksbone[3] = {0,0,0};
 	for (int i = 0; i < pV54RrigHdr->numbones; i++) {
 		mstudiobone_t* v49bone = reinterpret_cast<mstudiobone_t*>((mdl_buffer + pV49MdlHdr->boneindex + sizeof(mstudiobone_t) * i));
 		r5::v8::mstudiobone_t* v54bone = reinterpret_cast<r5::v8::mstudiobone_t*>(g_model.pData);
@@ -48,20 +53,16 @@ void ConvertMDL_RRIG(char* mdl_buffer, std::string output_dir, std::string filen
 		v54bone->scale = Vector3{1,1,1};
 		v54bone->poseToBone = v49bone->poseToBone;
 		v54bone->qAlignment = v49bone->qAlignment;
-		int bone_flag = 0;
-		if (v49bone->flags & 0x200) bone_flag |= 0x200;
-		if (v49bone->flags & 0x20) bone_flag |= 0x20;
-		v54bone->flags = bone_flag;
+		//int bone_flag = 0;
+		//if (v49bone->flags & 0x200) bone_flag |= 0x200;
+		//if (v49bone->flags & 0x20) bone_flag |= 0x20;
+		v54bone->flags = v49bone->flags;
 		v54bone->proctype = 0;
 		v54bone->procindex = 0;
 		v54bone->physicsbone = 0;
 		AddToStringTable((char*)v54bone, &v54bone->surfacepropidx, STRING_FROM_IDX(v49bone, v49bone->surfacepropidx));
 		v54bone->contents = v49bone->contents;
 		v54bone->surfacepropLookup = v49bone->surfacepropLookup;
-
-		if (strcmp(bone_name, "def_l_shoulder") == 0) iklinksbone[0] = i;
-		if (strcmp(bone_name, "def_l_elbow") == 0) iklinksbone[1] = i;
-		if (strcmp(bone_name, "def_l_wrist") == 0) iklinksbone[2] = i;
 		g_model.pHdr = v54bone;
 		g_model.pData += sizeof(r5::v8::mstudiobone_t);
 	}
@@ -138,22 +139,28 @@ void ConvertMDL_RRIG(char* mdl_buffer, std::string output_dir, std::string filen
 	g_model.pData += sizeof(r5::v8::mstudioposeparamdesc_t) * pV54RrigHdr->numlocalposeparameters;
 
 	//ik chains
-	pV54RrigHdr->numikchains = 1;
+	pV54RrigHdr->numikchains = pV49MdlHdr->numikchains;
 	pV54RrigHdr->ikchainindex = g_model.pData - g_model.pBase;
+	mstudioikchain_t* v49ikchain = PTR_FROM_IDX(mstudioikchain_t, mdl_buffer, pV49MdlHdr->ikchainindex);
 	r5::v8::mstudioikchain_t* v54ikchain = reinterpret_cast<r5::v8::mstudioikchain_t*>(g_model.pData);
-	AddToStringTable((char*)v54ikchain, &v54ikchain->sznameindex, "hand_left");
-	v54ikchain->linktype = 0;
-	v54ikchain->linkindex = 20;
-	v54ikchain->numlinks = 3;
-	v54ikchain->unk = 0x3F5DB3D7;
-	g_model.pData += sizeof(r5::v8::mstudioikchain_t);
+	for (int i = 0; i < pV49MdlHdr->numikchains; i++) {
+		AddToStringTable((char*)&v54ikchain[i], &v54ikchain[i].sznameindex, STRING_FROM_IDX(&v49ikchain[i], v49ikchain[i].sznameindex));
+		v54ikchain[i].linktype = v49ikchain[i].linktype;
+		v54ikchain[i].numlinks = v49ikchain[i].numlinks;
+		v54ikchain[i].unk = 0x3F5DB3D7;
+	}
+	g_model.pData += sizeof(r5::v8::mstudioikchain_t) * pV54RrigHdr->numikchains;
 
 	//ik links
-	r5::v8::mstudioiklink_t* v54iklink = reinterpret_cast<r5::v8::mstudioiklink_t*>(g_model.pData);
-	v54iklink[0].bone = iklinksbone[0];
-	v54iklink[1].bone = iklinksbone[1];
-	v54iklink[2].bone = iklinksbone[2];
-	g_model.pData += sizeof(r5::v8::mstudioiklink_t) * v54ikchain->numlinks;
+	for (int i = 0; i < pV49MdlHdr->numikchains; i++) {
+		v54ikchain[i].linkindex = g_model.pData - PTR_FROM_IDX(char, &v54ikchain[i], 0);
+		mstudioiklink_t* v49iklink = PTR_FROM_IDX(mstudioiklink_t, &v49ikchain[i], v49ikchain[i].linkindex);
+		r5::v8::mstudioiklink_t* v54iklink = reinterpret_cast<r5::v8::mstudioiklink_t*>(g_model.pData);
+		v54iklink[0].bone = v49iklink[0].bone - 2;// mdl is automatic selected the bone :(
+		v54iklink[1].bone = v49iklink[1].bone;
+		v54iklink[2].bone = v49iklink[2].bone; //wrist
+		g_model.pData += sizeof(r5::v8::mstudioiklink_t) * v54ikchain->numlinks;
+	}
 
 	//write all data
 	g_model.pData = WriteStringTable(g_model.pData);
