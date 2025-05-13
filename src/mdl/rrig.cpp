@@ -47,9 +47,9 @@ void ConvertMDL_RRIG(char* mdl_buffer, std::string output_dir, std::string filen
 		v54bone->bonecontroller[3] = v49bone->bonecontroller[3];
 		v54bone->bonecontroller[4] = v49bone->bonecontroller[4];
 		v54bone->bonecontroller[5] = v49bone->bonecontroller[5];
-		v54bone->pos = v49bone->pos;
-		v54bone->quat = v49bone->quat;
-		v54bone->rot = v49bone->rot;
+		v54bone->pos = v49bone->pos;//
+		v54bone->quat = v49bone->quat;//
+		v54bone->rot = v49bone->rot; //
 		v54bone->scale = Vector3{1,1,1};
 		v54bone->poseToBone = v49bone->poseToBone;
 		v54bone->qAlignment = v49bone->qAlignment;
