@@ -595,8 +595,8 @@ struct mstudioanimdesc_t
 namespace r5{
 	union mstudioanimvalue_t{
 		struct{
-			char	valid;
-			char	total;
+			unsigned char	valid;
+			unsigned char	total;
 		} meta;
 		short		value;
 	};

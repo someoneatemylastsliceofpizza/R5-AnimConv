@@ -144,7 +144,7 @@ void ConvertMDL_RSEQ(char* mdl_buffer, std::string output_dir, std::string filen
 				sections_index[section] = g_model.pData - (char*)rAnimDesc;
 				num_frames = pStudioAnimDesc[seq_idx].sectionframes;
 
-				if (section + 2 == num_sections) {
+				if (section == num_sections - 1) {
 					num_frames = pStudioAnimDesc[seq_idx].numframes - ((num_sections - 2) * pStudioAnimDesc[seq_idx].sectionframes);
 				}
 			}
@@ -211,7 +211,7 @@ void ConvertMDL_RSEQ(char* mdl_buffer, std::string output_dir, std::string filen
 					tmp_r = read_offset;
 					read_offset += sizeof(studioanimvalue_ptr_t);
 					if (!pMdlRotV->IsAllZero()) {
-						printf("%d   rotv: %d %d %d\n", mdlAnimRle->bone, pMdlRotV->x, pMdlRotV->y, pMdlRotV->z);
+						//printf("%d   rotv: %d %d %d\n", mdlAnimRle->bone, pMdlRotV->x, pMdlRotV->y, pMdlRotV->z);
 						//studioRotScale[mdlAnimRle->bone].Print(mdlAnimRle->bone);
 					}
 				}
@@ -220,7 +220,7 @@ void ConvertMDL_RSEQ(char* mdl_buffer, std::string output_dir, std::string filen
 					tmp_p = read_offset;
 					read_offset += sizeof(studioanimvalue_ptr_t);
 					if (!pMdlPosV->IsAllZero()) {
-						printf("%d   posv: %d %d %d\n", mdlAnimRle->bone, pMdlPosV->x, pMdlPosV->y, pMdlPosV->z);
+						//printf("%d   posv: %d %d %d\n", mdlAnimRle->bone, pMdlPosV->x, pMdlPosV->y, pMdlPosV->z);
 						//studioPosScale[mdlAnimRle->bone].Print(mdlAnimRle->bone);
 					}
 				}
@@ -303,9 +303,9 @@ void ConvertMDL_RSEQ(char* mdl_buffer, std::string output_dir, std::string filen
 					pRseqRotV->idx2 = max(idx_offset.at(2) - idx_offset.at(0), 0);
 				}
 
-				if (flags) {
-					printf("section:%d bone:%d (%d)\n", section, mdlAnimRle->bone, num_frames);
-				}
+			/*	if (flags) {
+					printf("section:%d/%d bone:%d (%d)\n", section, num_sections, mdlAnimRle->bone, num_frames);
+				}*/
 
 				flaggedbones.at(mdlAnimRle->bone) = flags;
 				rseqAnimRle->size = write_offset;
@@ -366,14 +366,13 @@ void ProcessAnimValue(int& read_offset, int& write_offset, mstudio_rle_anim_t* m
 	while (total_frame < numframe) {
 		r5::mstudioanimvalue_t* animvalue = PTR_FROM_IDX(r5::mstudioanimvalue_t, mdlAnimRle, read_offset);
 
-		//if (animvalue->meta.valid <= 0 || animvalue->meta.total <= 0) break;
 		for (int j = 0; j < animvalue->meta.valid; j++) read_anim_value.push_back(animvalue[j + 1].value);
 		for (int j = 0; j < animvalue->meta.total - animvalue->meta.valid; j++) read_anim_value.push_back(animvalue[animvalue->meta.valid].value);
 
 		read_offset += animvalue->meta.valid * 2 + 2;
 		total_frame += animvalue->meta.total;
 	};
-	printf("  %d/%d %d\n", total_frame, numframe, -pRseqValue->flags);
+	//printf("  %d/%d %d\n", total_frame, numframe, -pRseqValue->flags);
 
 	for (int j = 0; j < numframe; j++) {
 		rseqanimvalue[j + 1].value = ((double)read_anim_value.at(j) * oldScale / newScale);

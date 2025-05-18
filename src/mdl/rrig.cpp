@@ -128,14 +128,18 @@ void ConvertMDL_RRIG(char* mdl_buffer, std::string output_dir, std::string filen
 
 	//pose param
 	pV54RrigHdr->localposeparamindex = g_model.pData - g_model.pBase;
-	pV54RrigHdr->numlocalposeparameters = 3;
+	pV54RrigHdr->numlocalposeparameters = pV49MdlHdr->numlocalposeparameters;
+	mstudioposeparamdesc_t* v49poseparam = PTR_FROM_IDX(mstudioposeparamdesc_t, mdl_buffer, pV49MdlHdr->localposeparamindex);
 	r5::v8::mstudioposeparamdesc_t* v54poseparam = reinterpret_cast<r5::v8::mstudioposeparamdesc_t*>(g_model.pData);
-	AddToStringTable((char*)&v54poseparam[0], &v54poseparam[0].sznameindex, "velocity");
-	v54poseparam[0].end = 250.0f;
-	AddToStringTable((char*)&v54poseparam[1], &v54poseparam[1].sznameindex, "crouchFraction");
-	v54poseparam[1].end = 1.0f;
-	AddToStringTable((char*)&v54poseparam[2], &v54poseparam[2].sznameindex, "sprintfrac");
-	v54poseparam[2].end = 1.0f;
+	for (int i = 0; i < pV54RrigHdr->numlocalposeparameters; i++) {
+		AddToStringTable((char*)&v54poseparam[i], &v54poseparam[i].sznameindex, STRING_FROM_IDX(&v49poseparam[i], v49poseparam[i].sznameindex));
+		v54poseparam[i].start = v49poseparam[i].start;
+		v54poseparam[i].end = v49poseparam[i].end;
+	}
+	//AddToStringTable((char*)&v54poseparam[1], &v54poseparam[1].sznameindex, "crouchFraction");
+	//v54poseparam[1].end = 1.0f;
+	//AddToStringTable((char*)&v54poseparam[2], &v54poseparam[2].sznameindex, "sprintfrac");
+	//v54poseparam[2].end = 1.0f;
 	g_model.pData += sizeof(r5::v8::mstudioposeparamdesc_t) * pV54RrigHdr->numlocalposeparameters;
 
 	//ik chains
