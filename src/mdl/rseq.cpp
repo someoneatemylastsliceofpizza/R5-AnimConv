@@ -136,18 +136,22 @@ void ConvertMDL_RSEQ(char* mdl_buffer, std::string output_dir, std::string filen
 		rAnimDesc->animindex = g_model.pData - (char*)rAnimDesc;
 		rAnimDesc->sectionindex = hasSections ? rAnimDesc->animindex - num_sections * 4 : 0 ;
 		rAnimDesc->sectionframes = pStudioAnimDesc[seq_idx].sectionframes;
+
 		// TODO:
 		for (size_t section = 0; section < num_sections; section++) {
 
 			if (hasSections) {
 				sections_index[section] = g_model.pData - (char*)rAnimDesc;
-				num_frames = (pStudioAnimDesc[seq_idx].numframes / pStudioAnimDesc[seq_idx].sectionframes) > 0 ? pStudioAnimDesc[seq_idx].sectionframes : (pStudioAnimDesc[seq_idx].numframes % pStudioAnimDesc[seq_idx].sectionframes);
+				num_frames = pStudioAnimDesc[seq_idx].sectionframes;
+
+				if (section + 2 == num_sections) 
+					num_frames = (pStudioAnimDesc[seq_idx].numframes % pStudioAnimDesc[seq_idx].sectionframes);
 			}
 
 			//boneflagarray (allocate)
 			char* boneflagarray = reinterpret_cast<char*>(g_model.pData);
 			std::vector<unsigned int> flaggedbones(pV49MdlHdr->numbones + 1, 0);
-			g_model.pData += (size_t)(pV49MdlHdr->numbones + 1) / 2 + 1;
+			g_model.pData += (size_t)(pV49MdlHdr->numbones + 2) / 2 ;
 
 			//animvalue
 			int anim_block_offset = 0;
@@ -205,19 +209,19 @@ void ConvertMDL_RSEQ(char* mdl_buffer, std::string output_dir, std::string filen
 					pMdlRotV = PTR_FROM_IDX(studioanimvalue_ptr_t, mdlAnimRle, read_offset);
 					tmp_r = read_offset;
 					read_offset += sizeof(studioanimvalue_ptr_t);
-					//if (!pMdlRotV->IsAllZero()) {
-					//	//printf("%d   rotv: %d %d %d\n", mdlAnimRle->bone, pMdlRotV->x, pMdlRotV->y, pMdlRotV->z);
-					//	//studioRotScale[mdlAnimRle->bone].Print(mdlAnimRle->bone);
-					//}
+					if (!pMdlRotV->IsAllZero()) {
+						printf("%d   rotv: %d %d %d\n", mdlAnimRle->bone, pMdlRotV->x, pMdlRotV->y, pMdlRotV->z);
+						//studioRotScale[mdlAnimRle->bone].Print(mdlAnimRle->bone);
+					}
 				}
 				if (mdlAnimRle->flags & RTECH_ANIM_ANIMPOS) {
 					pMdlPosV = PTR_FROM_IDX(studioanimvalue_ptr_t, mdlAnimRle, read_offset);
 					tmp_p = read_offset;
 					read_offset += sizeof(studioanimvalue_ptr_t);
-					//if (!pMdlPosV->IsAllZero()) {
-					//	//printf("%d   posv: %d %d %d\n", mdlAnimRle->bone, pMdlPosV->x, pMdlPosV->y, pMdlPosV->z);
-					//	//studioPosScale[mdlAnimRle->bone].Print(mdlAnimRle->bone);
-					//}
+					if (!pMdlPosV->IsAllZero()) {
+						printf("%d   posv: %d %d %d\n", mdlAnimRle->bone, pMdlPosV->x, pMdlPosV->y, pMdlPosV->z);
+						//studioPosScale[mdlAnimRle->bone].Print(mdlAnimRle->bone);
+					}
 				}
 
 
@@ -296,8 +300,12 @@ void ConvertMDL_RSEQ(char* mdl_buffer, std::string output_dir, std::string filen
 					pRseqRotV->offset = idx_offset.at(0) * 2;
 					pRseqRotV->idx1 = max(idx_offset.at(1) - idx_offset.at(0), 0);
 					pRseqRotV->idx2 = max(idx_offset.at(2) - idx_offset.at(0), 0);
-
 				}
+
+				if (flags) {
+					printf("section:%d bone:%d (%d)\n", section, mdlAnimRle->bone, num_frames);
+				}
+
 				flaggedbones.at(mdlAnimRle->bone) = flags;
 				rseqAnimRle->size = write_offset;
 				g_model.pData += write_offset;
@@ -331,7 +339,6 @@ void ConvertMDL_RSEQ(char* mdl_buffer, std::string output_dir, std::string filen
 		//movementdata->unkfloat4 = 344.9211f;
 		//g_model.pData += sizeof(r5::unkseqdata_t) * pV7RseqDesc->unkCount;
 
-
 		//write all data
 		g_model.pData = WriteStringTable(g_model.pData);
 		ALIGN4(g_model.pData);
@@ -355,14 +362,17 @@ void ProcessAnimValue(int& read_offset, int& write_offset, mstudio_rle_anim_t* m
 
 	int total_frame = 0;
 	std::vector<int> read_anim_value;
-	do {
+	while (total_frame < numframe) {
 		r5::mstudioanimvalue_t* animvalue = PTR_FROM_IDX(r5::mstudioanimvalue_t, mdlAnimRle, read_offset);
+
+		//if (animvalue->meta.valid <= 0 || animvalue->meta.total <= 0) break;
 		for (int j = 0; j < animvalue->meta.valid; j++) read_anim_value.push_back(animvalue[j + 1].value);
 		for (int j = 0; j < animvalue->meta.total - animvalue->meta.valid; j++) read_anim_value.push_back(animvalue[animvalue->meta.valid].value);
 
 		read_offset += animvalue->meta.valid * 2 + 2;
 		total_frame += animvalue->meta.total;
-	} while (total_frame < numframe);
+	};
+	printf("  %d/%d %d\n", total_frame, numframe, -pRseqValue->flags);
 
 	for (int j = 0; j < numframe; j++) {
 		rseqanimvalue[j + 1].value = ((double)read_anim_value.at(j) * oldScale / newScale);

@@ -1,7 +1,13 @@
-a = input().split("\n")
+a = []
+while True:
+   line = input()
+   if not line: break
+   a.append(line)
+   
 b = [c.split(",")[1] for c in a]
-print('\n'.join(b))
 
+with open('target_ref.txt', 'w') as f:
+    f.write('\n'.join(b))
 
 # bones[0],jx_c_delta,224h,B8h,struct mstudiobone_t_v54,Fg: Bg:0x407F40,
 # bones[1],jx_c_start,2DCh,B8h,struct mstudiobone_t_v54,Fg: Bg:0x407F40,
