@@ -144,14 +144,15 @@ void ConvertMDL_RSEQ(char* mdl_buffer, std::string output_dir, std::string filen
 				sections_index[section] = g_model.pData - (char*)rAnimDesc;
 				num_frames = pStudioAnimDesc[seq_idx].sectionframes;
 
-				if (section + 2 == num_sections) 
-					num_frames = (pStudioAnimDesc[seq_idx].numframes % pStudioAnimDesc[seq_idx].sectionframes);
+				if (section + 2 == num_sections) {
+					num_frames = pStudioAnimDesc[seq_idx].numframes - ((num_sections - 2) * pStudioAnimDesc[seq_idx].sectionframes);
+				}
 			}
 
 			//boneflagarray (allocate)
 			char* boneflagarray = reinterpret_cast<char*>(g_model.pData);
 			std::vector<unsigned int> flaggedbones(pV49MdlHdr->numbones + 1, 0);
-			g_model.pData += (size_t)(pV49MdlHdr->numbones + 2) / 2 ;
+			g_model.pData += ((pV49MdlHdr->numbones + 3) / 2) % 2 == 1 ? (pV49MdlHdr->numbones + 3) / 2 - 1 : (pV49MdlHdr->numbones + 3) / 2 ;
 
 			//animvalue
 			int anim_block_offset = 0;
