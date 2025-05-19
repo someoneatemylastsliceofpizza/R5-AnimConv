@@ -5,7 +5,7 @@
 
 void WritePreHeader(r5::v8::studiohdr_t* pV54RrigHdr, studiohdr_t* v49MdlHdr);
 
-void ConvertMDL_RRIG(char* mdl_buffer, std::string output_dir, std::string filename) {
+std::string ConvertMDL_RRIG(char* mdl_buffer, std::string output_dir, std::string filename) {
 	printf("Convering Rrig...\n");
 	g_model.pBase = new char[32 * 1024 * 1024] {};
 	g_model.pData = g_model.pBase;
@@ -175,6 +175,10 @@ void ConvertMDL_RRIG(char* mdl_buffer, std::string output_dir, std::string filen
 	g_model.stringTable.clear();
 	delete[] g_model.pBase;
 	printf("Done!\n");
+
+	std::string ret_name = model_dir + filename + ".rrig";
+	std::replace(ret_name.begin(), ret_name.end(), '\\', '/');
+	return ret_name;
 }
 
 

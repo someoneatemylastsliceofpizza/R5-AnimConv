@@ -2,4 +2,4 @@
 #include <fstream>
 #include <utils/fileio.cpp>
 
-void ConvertMDL_RRIG(char* mdl_buffer, std::string output_dir, std::string filename);
+std::string ConvertMDL_RRIG(char* mdl_buffer, std::string output_dir, std::string filename);

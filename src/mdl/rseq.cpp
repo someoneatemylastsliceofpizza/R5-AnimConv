@@ -5,7 +5,7 @@
 
 void ProcessAnimValue(int& read_offset, int& write_offset, mstudio_rle_anim_t* mdlAnimRle, r5::studioanimvalue_ptr_t* pRseqValue, int numframe, std::vector<int>& idx_offset, float newScale, float oldScale);
 
-void ConvertMDL_RSEQ(char* mdl_buffer, std::string output_dir, std::string filename) {
+std::vector<std::string> ConvertMDL_RSEQ(char* mdl_buffer, std::string output_dir, std::string filename) {
 	studiohdr_t* pV49MdlHdr = reinterpret_cast<studiohdr_t*>(mdl_buffer);
 	studiohdr2_t* pV49MdlHdr2 = PTR_FROM_IDX(studiohdr2_t, mdl_buffer, sizeof(studiohdr_t));
 	mstudioseqdesc_t* pStudioSeqDesc = reinterpret_cast<mstudioseqdesc_t*>((mdl_buffer + pV49MdlHdr->localseqindex));
@@ -14,6 +14,8 @@ void ConvertMDL_RSEQ(char* mdl_buffer, std::string output_dir, std::string filen
 	mstudiolinearbone_t* linearboneindexes = PTR_FROM_IDX(mstudiolinearbone_t, mdl_buffer, pV49MdlHdr2->srcbonetransformindex);
 	Vector3* studioPosScale = PTR_FROM_IDX(Vector3, linearboneindexes, linearboneindexes->posscaleindex);
 	Vector3* studioRotScale = PTR_FROM_IDX(Vector3, linearboneindexes, linearboneindexes->rotscaleindex);
+
+	std::vector<std::string> sequence_names;
 
 	for (int seq_idx = 0; seq_idx < pV49MdlHdr->numlocalseq; seq_idx++) {
 		printf("Converting sequence %d/%d\n", seq_idx + 1, pV49MdlHdr->numlocalseq);
@@ -30,9 +32,11 @@ void ConvertMDL_RSEQ(char* mdl_buffer, std::string output_dir, std::string filen
 		std::replace(output_path.begin(), output_path.end(), '/', '\\');
 		std::replace(model_dir.begin(), model_dir.end(), '/', '\\');
 		std::filesystem::create_directories(output_dir + "\\" + model_dir);
-		
+
 		std::ofstream outRseq(output_path, std::ios::out | std::ios::binary);
 		printf("    ->%s\n", seqdescname.c_str());
+		if (seqdescname != "ref.rseq")
+			sequence_names.push_back(seqdescname);
 
 		std::string seq_gen_name = model_dir + "_" + seq_name;
 		seq_gen_name = seq_gen_name.substr(seq_gen_name.find_last_of('\\') + 1);
@@ -112,7 +116,7 @@ void ConvertMDL_RSEQ(char* mdl_buffer, std::string output_dir, std::string filen
 		pV7RseqDesc->animindexindex = g_model.pData - g_model.pBase;
 		int* blend = reinterpret_cast<int*>(g_model.pData);
 		g_model.pData += sizeof(int) * pV7RseqDesc->numblends;
-	
+
 		//TODO:support multiple anim
 		//animdesc 
 		r5::v8::mstudioanimdesc_t* rAnimDesc = reinterpret_cast<r5::v8::mstudioanimdesc_t*>(g_model.pData);
@@ -143,7 +147,7 @@ void ConvertMDL_RSEQ(char* mdl_buffer, std::string output_dir, std::string filen
 		}
 
 		rAnimDesc->animindex = g_model.pData - (char*)rAnimDesc;
-		rAnimDesc->sectionindex = hasSections ? rAnimDesc->animindex - num_sections * 4 : 0 ;
+		rAnimDesc->sectionindex = hasSections ? rAnimDesc->animindex - num_sections * 4 : 0;
 		rAnimDesc->sectionframes = pStudioAnimDesc[seq_idx].sectionframes;
 
 		for (size_t section = 0; section < num_sections; section++) {
@@ -160,7 +164,7 @@ void ConvertMDL_RSEQ(char* mdl_buffer, std::string output_dir, std::string filen
 			//boneflagarray (allocate)
 			char* boneflagarray = reinterpret_cast<char*>(g_model.pData);
 			std::vector<unsigned int> flaggedbones(pV49MdlHdr->numbones + 1, 0);
-			g_model.pData += ((pV49MdlHdr->numbones + 3) / 2) % 2 == 1 ? (pV49MdlHdr->numbones + 3) / 2 - 1 : (pV49MdlHdr->numbones + 3) / 2 ;
+			g_model.pData += ((pV49MdlHdr->numbones + 3) / 2) % 2 == 1 ? (pV49MdlHdr->numbones + 3) / 2 - 1 : (pV49MdlHdr->numbones + 3) / 2;
 
 			//animvalue
 			int anim_block_offset = 0;
@@ -169,7 +173,8 @@ void ConvertMDL_RSEQ(char* mdl_buffer, std::string output_dir, std::string filen
 
 				if (hasSections) {
 					mdlAnimRle = PTR_FROM_IDX(mstudio_rle_anim_t, mdl_buffer - animbase_ptr, animsections[section].animindex + anim_block_offset);
-				} else {
+				}
+				else {
 					mdlAnimRle = PTR_FROM_IDX(mstudio_rle_anim_t, mdl_buffer - animbase_ptr, pStudioAnimDesc[seq_idx].animindex + anim_block_offset);
 				}
 
@@ -311,12 +316,12 @@ void ConvertMDL_RSEQ(char* mdl_buffer, std::string output_dir, std::string filen
 					pRseqRotV->idx2 = max(idx_offset.at(2) - idx_offset.at(0), 0);
 				}
 
-			/*	if (flags) {
-					printf("section:%d/%d bone:%d (%d)\n", section, num_sections, mdlAnimRle->bone, num_frames);
-				}*/
+				/*	if (flags) {
+						printf("section:%d/%d bone:%d (%d)\n", section, num_sections, mdlAnimRle->bone, num_frames);
+					}*/
 
-				// if (mdlAnimRle->bone > pV49MdlHdr->numbones) break;
-				//printf("->%d / %d / %d\n", flaggedbones.size(), pV49MdlHdr->numbones, mdlAnimRle->bone);
+					// if (mdlAnimRle->bone > pV49MdlHdr->numbones) break;
+					//printf("->%d / %d / %d\n", flaggedbones.size(), pV49MdlHdr->numbones, mdlAnimRle->bone);
 				flaggedbones.at(mdlAnimRle->bone) = flags;
 				rseqAnimRle->size = write_offset;
 				g_model.pData += write_offset;
@@ -359,8 +364,8 @@ void ConvertMDL_RSEQ(char* mdl_buffer, std::string output_dir, std::string filen
 		delete[] g_model.pBase;
 
 		printf("Done!\n");
-
 	}
+	return sequence_names;
 }
 
 void ProcessAnimValue(int& read_offset, int& write_offset, mstudio_rle_anim_t* mdlAnimRle, r5::studioanimvalue_ptr_t* pRseqValue, int numframe, std::vector<int>& idx_offset, float newScale, float oldScale) {
