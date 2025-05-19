@@ -24,7 +24,7 @@ void ConvertMDL_RSEQ(char* mdl_buffer, std::string output_dir, std::string filen
 		std::string seq_name = STRING_FROM_IDX(reinterpret_cast<char*>(mdl_buffer - base_ptr), pStudioSeqDesc[seq_idx].sznameindex);
 
 		model_folder = "animseq/" + model_folder.substr(model_folder.find('/') + 1, model_folder.rfind('.') - model_folder.find('/') - 1);
-		std::string seqdescname = model_folder + "/" + seq_name + ".rseq";
+		std::string seqdescname = seq_name + ".rseq";
 		std::string output_path = output_dir + "/" + seqdescname;
 		std::replace(output_path.begin(), output_path.end(), '/', '\\');
 		std::replace(seqdescname.begin(), seqdescname.end(), '\\', '/');
@@ -97,8 +97,19 @@ void ConvertMDL_RSEQ(char* mdl_buffer, std::string output_dir, std::string filen
 		}
 		g_model.pData += sizeof(int) * pV49MdlHdr->numbones;
 
-		//blends
+		//activity modifiers
 		pV7RseqDesc->activitymodifierindex = g_model.pData - g_model.pBase;
+		pV7RseqDesc->numactivitymodifiers = pStudioSeqDesc[seq_idx].numactivitymodifiers;
+		int* mstudioActivityModifier = PTR_FROM_IDX(int, &pStudioSeqDesc[seq_idx], pStudioSeqDesc[seq_idx].activitymodifierindex);
+		r5::v8::mstudioactivitymodifier_t* rseqActivityModifier = reinterpret_cast<r5::v8::mstudioactivitymodifier_t*>(g_model.pData);
+		for (int i = 0; i < pV7RseqDesc->numactivitymodifiers; i++) {
+			AddToStringTable((char*)&rseqActivityModifier[i], &rseqActivityModifier[i].sznameindex, STRING_FROM_IDX(&mstudioActivityModifier[i], mstudioActivityModifier[i]));
+			rseqActivityModifier[i].negate = 0; //
+		}
+		g_model.pData += sizeof(r5::v8::mstudioactivitymodifier_t) * pV7RseqDesc->numactivitymodifiers;
+
+
+		//blends
 		pV7RseqDesc->animindexindex = g_model.pData - g_model.pBase;
 		int* blend = reinterpret_cast<int*>(g_model.pData);
 		g_model.pData += sizeof(int) * pV7RseqDesc->numblends;
@@ -128,8 +139,6 @@ void ConvertMDL_RSEQ(char* mdl_buffer, std::string output_dir, std::string filen
 			num_sections = (pStudioAnimDesc[seq_idx].animindex - pStudioAnimDesc[seq_idx].sectionindex) / 8 - 1;
 			animsections = PTR_FROM_IDX(mstudioanimsections_t, mdl_buffer - animbase_ptr, pStudioAnimDesc[seq_idx].sectionindex);
 			sections_index = reinterpret_cast<unsigned int*>(g_model.pData);
-			//rAnimDesc->sectionindex = g_model.pData - g_model.pBase;
-			//rAnimDesc->numframes = pStudioAnimDesc[seq_idx].numframes;
 			g_model.pData += 4 * num_sections;
 		}
 
@@ -210,19 +219,19 @@ void ConvertMDL_RSEQ(char* mdl_buffer, std::string output_dir, std::string filen
 					pMdlRotV = PTR_FROM_IDX(studioanimvalue_ptr_t, mdlAnimRle, read_offset);
 					tmp_r = read_offset;
 					read_offset += sizeof(studioanimvalue_ptr_t);
-					if (!pMdlRotV->IsAllZero()) {
+					//if (!pMdlRotV->IsAllZero()) {
 						//printf("%d   rotv: %d %d %d\n", mdlAnimRle->bone, pMdlRotV->x, pMdlRotV->y, pMdlRotV->z);
 						//studioRotScale[mdlAnimRle->bone].Print(mdlAnimRle->bone);
-					}
+					//}
 				}
 				if (mdlAnimRle->flags & RTECH_ANIM_ANIMPOS) {
 					pMdlPosV = PTR_FROM_IDX(studioanimvalue_ptr_t, mdlAnimRle, read_offset);
 					tmp_p = read_offset;
 					read_offset += sizeof(studioanimvalue_ptr_t);
-					if (!pMdlPosV->IsAllZero()) {
+					//if (!pMdlPosV->IsAllZero()) {
 						//printf("%d   posv: %d %d %d\n", mdlAnimRle->bone, pMdlPosV->x, pMdlPosV->y, pMdlPosV->z);
 						//studioPosScale[mdlAnimRle->bone].Print(mdlAnimRle->bone);
-					}
+					//}
 				}
 
 
