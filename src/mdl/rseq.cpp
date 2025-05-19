@@ -113,8 +113,9 @@ void ConvertMDL_RSEQ(char* mdl_buffer, std::string output_dir, std::string filen
 		pV7RseqDesc->animindexindex = g_model.pData - g_model.pBase;
 		int* blend = reinterpret_cast<int*>(g_model.pData);
 		g_model.pData += sizeof(int) * pV7RseqDesc->numblends;
-
-		//animdesc TODO:support multiple anim
+	
+		//TODO:support multiple anim
+		//animdesc 
 		r5::v8::mstudioanimdesc_t* rAnimDesc = reinterpret_cast<r5::v8::mstudioanimdesc_t*>(g_model.pData);
 		*blend = g_model.pData - g_model.pBase;
 		rAnimDesc->fps = pStudioAnimDesc[seq_idx].fps;
@@ -146,15 +147,14 @@ void ConvertMDL_RSEQ(char* mdl_buffer, std::string output_dir, std::string filen
 		rAnimDesc->sectionindex = hasSections ? rAnimDesc->animindex - num_sections * 4 : 0 ;
 		rAnimDesc->sectionframes = pStudioAnimDesc[seq_idx].sectionframes;
 
-		// TODO:
 		for (size_t section = 0; section < num_sections; section++) {
 
 			if (hasSections) {
 				sections_index[section] = g_model.pData - (char*)rAnimDesc;
-				num_frames = pStudioAnimDesc[seq_idx].sectionframes;
+				num_frames = pStudioAnimDesc[seq_idx].sectionframes + 1;
 
 				if (section == num_sections - 1) {
-					num_frames = pStudioAnimDesc[seq_idx].numframes - ((num_sections - 2) * pStudioAnimDesc[seq_idx].sectionframes);
+					num_frames = pStudioAnimDesc[seq_idx].numframes - ((num_sections - 2) * pStudioAnimDesc[seq_idx].sectionframes + 1);
 				}
 			}
 
@@ -316,6 +316,8 @@ void ConvertMDL_RSEQ(char* mdl_buffer, std::string output_dir, std::string filen
 					printf("section:%d/%d bone:%d (%d)\n", section, num_sections, mdlAnimRle->bone, num_frames);
 				}*/
 
+				// if (mdlAnimRle->bone > pV49MdlHdr->numbones) break;
+				//printf("->%d / %d / %d\n", flaggedbones.size(), pV49MdlHdr->numbones, mdlAnimRle->bone);
 				flaggedbones.at(mdlAnimRle->bone) = flags;
 				rseqAnimRle->size = write_offset;
 				g_model.pData += write_offset;
