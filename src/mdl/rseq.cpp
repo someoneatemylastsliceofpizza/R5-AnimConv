@@ -20,22 +20,21 @@ void ConvertMDL_RSEQ(char* mdl_buffer, std::string output_dir, std::string filen
 
 		int base_ptr = pStudioSeqDesc[seq_idx].baseptr;
 
-		std::string model_folder = pV49MdlHdr->name;
+		std::string model_dir = "";
 		std::string seq_name = STRING_FROM_IDX(reinterpret_cast<char*>(mdl_buffer - base_ptr), pStudioSeqDesc[seq_idx].sznameindex);
 
-		model_folder = "animseq/" + model_folder.substr(model_folder.find('/') + 1, model_folder.rfind('.') - model_folder.find('/') - 1);
 		std::string seqdescname = seq_name + ".rseq";
+		size_t pos = seq_name.rfind('/');
+		model_dir = (pos != std::string::npos) ? seq_name.substr(0, pos) : "";
 		std::string output_path = output_dir + "/" + seqdescname;
 		std::replace(output_path.begin(), output_path.end(), '/', '\\');
-		std::replace(seqdescname.begin(), seqdescname.end(), '\\', '/');
-
-		std::replace(model_folder.begin(), model_folder.end(), '/', '\\');
-		std::filesystem::create_directories(output_dir + "\\" + model_folder);
+		std::replace(model_dir.begin(), model_dir.end(), '/', '\\');
+		std::filesystem::create_directories(output_dir + "\\" + model_dir);
 		
 		std::ofstream outRseq(output_path, std::ios::out | std::ios::binary);
 		printf("    ->%s\n", seqdescname.c_str());
 
-		std::string seq_gen_name = model_folder + "_" + seq_name;
+		std::string seq_gen_name = model_dir + "_" + seq_name;
 		seq_gen_name = seq_gen_name.substr(seq_gen_name.find_last_of('\\') + 1);
 
 		//header
