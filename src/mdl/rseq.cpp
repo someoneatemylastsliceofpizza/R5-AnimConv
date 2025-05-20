@@ -38,9 +38,6 @@ std::vector<std::string> ConvertMDL_RSEQ(char* mdl_buffer, std::string output_di
 		if (seqdescname != "ref.rseq")
 			sequence_names.push_back(seqdescname);
 
-		std::string seq_gen_name = model_dir + "_" + seq_name;
-		seq_gen_name = seq_gen_name.substr(seq_gen_name.find_last_of('\\') + 1);
-
 		//header
 		g_model.pBase = new char[32 * 1024 * 1024] {};
 		g_model.pData = g_model.pBase;
@@ -51,7 +48,7 @@ std::vector<std::string> ConvertMDL_RSEQ(char* mdl_buffer, std::string output_di
 		pV7RseqDesc->numevents = pStudioSeqDesc[seq_idx].numevents;
 		pV7RseqDesc->bbmin = pStudioSeqDesc[seq_idx].bbmin;
 		pV7RseqDesc->bbmax = pStudioSeqDesc[seq_idx].bbmax;
-		pV7RseqDesc->numblends = 1; //
+		pV7RseqDesc->numblends = pStudioSeqDesc[seq_idx].numblends;
 		pV7RseqDesc->groupsize[0] = pStudioSeqDesc[seq_idx].groupsize[0];
 		pV7RseqDesc->groupsize[1] = pStudioSeqDesc[seq_idx].groupsize[1];
 		pV7RseqDesc->paramindex[0] = pStudioSeqDesc[seq_idx].paramindex[0];
@@ -76,8 +73,14 @@ std::vector<std::string> ConvertMDL_RSEQ(char* mdl_buffer, std::string output_di
 
 		//posekey
 		int numposekey = pV7RseqDesc->groupsize[0] + pV7RseqDesc->groupsize[1];
-		pV7RseqDesc->posekeyindex = 0; //g_model.pData - g_model.pBase;
-		//g_model.pData += sizeof(int) * (numposekey);
+		pV7RseqDesc->posekeyindex = g_model.pData - g_model.pBase;
+
+		float* studioPoseKey = PTR_FROM_IDX(float, &pStudioSeqDesc[seq_idx], pStudioSeqDesc[seq_idx].posekeyindex);
+		float* posekey = reinterpret_cast<float*>(g_model.pData);
+		for (int i = 0; i < numposekey; i++) {
+			posekey[i] = studioPoseKey[i];
+		}
+		g_model.pData += sizeof(float) * (numposekey);
 
 		//events
 		pV7RseqDesc->eventindex = g_model.pData - g_model.pBase;
@@ -96,7 +99,7 @@ std::vector<std::string> ConvertMDL_RSEQ(char* mdl_buffer, std::string output_di
 		pV7RseqDesc->weightlistindex = g_model.pData - g_model.pBase;
 		float* weight = reinterpret_cast<float*>(g_model.pData);
 		for (int i = 0; i < pV49MdlHdr->numbones; i++) {
-			weight[i] = 1.0f;
+			weight[i] = 1.0f;//
 		}
 		g_model.pData += sizeof(int) * pV49MdlHdr->numbones;
 
@@ -114,237 +117,241 @@ std::vector<std::string> ConvertMDL_RSEQ(char* mdl_buffer, std::string output_di
 
 		//blends
 		pV7RseqDesc->animindexindex = g_model.pData - g_model.pBase;
-		int* blend = reinterpret_cast<int*>(g_model.pData);
+		short* studio_blends = PTR_FROM_IDX(short, &pStudioSeqDesc[seq_idx], pStudioSeqDesc[seq_idx].animindexindex);
+		int* rseq_blends = reinterpret_cast<int*>(g_model.pData);
 		g_model.pData += sizeof(int) * pV7RseqDesc->numblends;
 
-		//TODO:support multiple anim
-		//animdesc 
-		r5::v8::mstudioanimdesc_t* rAnimDesc = reinterpret_cast<r5::v8::mstudioanimdesc_t*>(g_model.pData);
-		*blend = g_model.pData - g_model.pBase;
-		rAnimDesc->fps = pStudioAnimDesc[seq_idx].fps;
-		rAnimDesc->flags = (pStudioAnimDesc->numframes > 0 ? 0x20000 : 0x0) | pStudioAnimDesc[seq_idx].flags;
-		rAnimDesc->numframes = pStudioAnimDesc[seq_idx].numframes;
-		//rAnimDesc->animindex = g_model.pData - g_model.pBase;
-		AddToStringTable((char*)rAnimDesc, &rAnimDesc->sznameindex, seq_gen_name.c_str());
-		g_model.pData += sizeof(r5::v8::mstudioanimdesc_t);
-		ALIGN16(g_model.pData);
+		for (int blend_idx = 0; blend_idx < pV7RseqDesc->numblends; blend_idx++) {
+			//animdesc 
+			short blend = studio_blends[blend_idx];
+			r5::v8::mstudioanimdesc_t* rAnimDesc = reinterpret_cast<r5::v8::mstudioanimdesc_t*>(g_model.pData);
+			char* anim_name = (char *)STRING_FROM_IDX(mdl_buffer, pStudioAnimDesc[blend].sznameindex - pStudioAnimDesc[blend].baseptr);
+			rseq_blends[blend_idx] = g_model.pData - g_model.pBase;
+			rAnimDesc->fps = pStudioAnimDesc[blend].fps;
+			rAnimDesc->flags = (pStudioAnimDesc[blend].numframes > 0 ? 0x20000 : 0x0) | pStudioAnimDesc[blend].flags & 0xF;//
+			rAnimDesc->numframes = pStudioAnimDesc[blend].numframes;
+           
+			AddToStringTable(reinterpret_cast<char*>(rAnimDesc), &rAnimDesc->sznameindex, anim_name);
+
+			g_model.pData += sizeof(r5::v8::mstudioanimdesc_t);
+			ALIGN16(g_model.pData);
 
 
-		//anims
-		mstudioanimsections_t* animsections = nullptr;
-		unsigned int* sections_index{};
-		int animbase_ptr = pStudioAnimDesc[seq_idx].baseptr;
-		int num_frames = pStudioAnimDesc[seq_idx].numframes;
-		bool hasSections = false;
+			//anims
+			mstudioanimsections_t* animsections = nullptr;
+			unsigned int* sections_index{};
+			int animbase_ptr = pStudioAnimDesc[blend].baseptr;
+			int num_frames = pStudioAnimDesc[blend].numframes;
+			bool hasSections = false;
 
-		size_t num_sections = 1;
-		if (pStudioAnimDesc[seq_idx].sectionindex) {
-			hasSections = true;
-			num_sections = (pStudioAnimDesc[seq_idx].animindex - pStudioAnimDesc[seq_idx].sectionindex) / 8 - 1;
-			animsections = PTR_FROM_IDX(mstudioanimsections_t, mdl_buffer - animbase_ptr, pStudioAnimDesc[seq_idx].sectionindex);
-			sections_index = reinterpret_cast<unsigned int*>(g_model.pData);
-			g_model.pData += 4 * num_sections;
-		}
-
-		rAnimDesc->animindex = g_model.pData - (char*)rAnimDesc;
-		rAnimDesc->sectionindex = hasSections ? rAnimDesc->animindex - num_sections * 4 : 0;
-		rAnimDesc->sectionframes = pStudioAnimDesc[seq_idx].sectionframes;
-
-		for (size_t section = 0; section < num_sections; section++) {
-
-			if (hasSections) {
-				sections_index[section] = g_model.pData - (char*)rAnimDesc;
-				num_frames = pStudioAnimDesc[seq_idx].sectionframes + 1;
-
-				if (section == num_sections - 1) {
-					num_frames = pStudioAnimDesc[seq_idx].numframes - ((num_sections - 2) * pStudioAnimDesc[seq_idx].sectionframes + 1);
-				}
+			size_t num_sections = 1;
+			if (pStudioAnimDesc[blend].sectionindex) {
+				hasSections = true;
+				num_sections = (pStudioAnimDesc[blend].animindex - pStudioAnimDesc[blend].sectionindex) / 8 - 1;
+				animsections = PTR_FROM_IDX(mstudioanimsections_t, mdl_buffer - animbase_ptr, pStudioAnimDesc[blend].sectionindex);
+				sections_index = reinterpret_cast<unsigned int*>(g_model.pData);
+				g_model.pData += 4 * num_sections;
 			}
 
-			//boneflagarray (allocate)
-			char* boneflagarray = reinterpret_cast<char*>(g_model.pData);
-			std::vector<unsigned int> flaggedbones(pV49MdlHdr->numbones + 1, 0);
-			g_model.pData += ((pV49MdlHdr->numbones + 3) / 2) % 2 == 1 ? (pV49MdlHdr->numbones + 3) / 2 - 1 : (pV49MdlHdr->numbones + 3) / 2;
+			rAnimDesc->animindex = g_model.pData - (char*)rAnimDesc;
+			rAnimDesc->sectionindex = hasSections ? rAnimDesc->animindex - num_sections * 4 : 0;
+			rAnimDesc->sectionframes = pStudioAnimDesc[blend].sectionframes;
 
-			//animvalue
-			int anim_block_offset = 0;
-			for (int i = 0; i < pV49MdlHdr->numbones; i++) {
-				mstudio_rle_anim_t* mdlAnimRle{};
+			for (size_t section = 0; section < num_sections; section++) {
 
 				if (hasSections) {
-					mdlAnimRle = PTR_FROM_IDX(mstudio_rle_anim_t, mdl_buffer - animbase_ptr, animsections[section].animindex + anim_block_offset);
-				}
-				else {
-					mdlAnimRle = PTR_FROM_IDX(mstudio_rle_anim_t, mdl_buffer - animbase_ptr, pStudioAnimDesc[seq_idx].animindex + anim_block_offset);
-				}
+					sections_index[section] = g_model.pData - (char*)rAnimDesc;
+					num_frames = pStudioAnimDesc[blend].sectionframes + 1;
 
-				r5::mstudio_rle_anim_t* rseqAnimRle = reinterpret_cast<r5::mstudio_rle_anim_t*>(g_model.pData);
-				rseqAnimRle->flags = 0;
-				int read_offset = sizeof(mstudio_rle_anim_t);
-				int write_offset = sizeof(r5::mstudio_rle_anim_t);
-				int flags = 0;
-				int tmp_r, tmp_p;
-
-				r5::studioanimvalue_ptr_t* pRseqRotV{};
-				r5::studioanimvalue_ptr_t* pRseqPosV{};
-				studioanimvalue_ptr_t* pMdlRotV{};
-				studioanimvalue_ptr_t* pMdlPosV{};
-
-				//alloc posscale
-				if (mdlAnimRle->flags & RTECH_ANIM_ANIMPOS) {
-					float* posscale = PTR_FROM_IDX(float, g_model.pData, write_offset);
-					*posscale = studioPosScale[i].Min();
-					write_offset += 4;
-				}
-				//raw data
-				if (mdlAnimRle->flags & RTECH_ANIM_RAWPOS) {
-					Vector48* rseqRawpos = PTR_FROM_IDX(Vector48, g_model.pData, write_offset);
-					Vector48* mdlRawpos = PTR_FROM_IDX(Vector48, mdlAnimRle, ((mdlAnimRle->flags & STUDIO_ANIM_RAWROT) ? 12 : read_offset));
-					rseqRawpos->x = mdlRawpos->x;
-					rseqRawpos->y = mdlRawpos->y;
-					rseqRawpos->z = mdlRawpos->z;
-					flags |= 0x1;
-					write_offset += 6;
-				}
-
-				if (mdlAnimRle->flags & STUDIO_ANIM_RAWROT) {
-					Quaternion64* rseqRawrot = PTR_FROM_IDX(Quaternion64, g_model.pData, write_offset);
-					Quaternion64* mdlRawrot = PTR_FROM_IDX(Quaternion64, mdlAnimRle, read_offset);
-					rseqRawrot->x = mdlRawrot->x;
-					rseqRawrot->y = mdlRawrot->y;
-					rseqRawrot->z = mdlRawrot->z;
-					rseqRawrot->wneg = mdlRawrot->wneg;
-					flags |= 0x2;
-					write_offset += 8;
-				}
-
-				//animvalue_ptr
-				if (mdlAnimRle->flags & RTECH_ANIM_ANIMROT) {
-					pMdlRotV = PTR_FROM_IDX(studioanimvalue_ptr_t, mdlAnimRle, read_offset);
-					tmp_r = read_offset;
-					read_offset += sizeof(studioanimvalue_ptr_t);
-					//if (!pMdlRotV->IsAllZero()) {
-						//printf("%d   rotv: %d %d %d\n", mdlAnimRle->bone, pMdlRotV->x, pMdlRotV->y, pMdlRotV->z);
-						//studioRotScale[mdlAnimRle->bone].Print(mdlAnimRle->bone);
-					//}
-				}
-				if (mdlAnimRle->flags & RTECH_ANIM_ANIMPOS) {
-					pMdlPosV = PTR_FROM_IDX(studioanimvalue_ptr_t, mdlAnimRle, read_offset);
-					tmp_p = read_offset;
-					read_offset += sizeof(studioanimvalue_ptr_t);
-					//if (!pMdlPosV->IsAllZero()) {
-						//printf("%d   posv: %d %d %d\n", mdlAnimRle->bone, pMdlPosV->x, pMdlPosV->y, pMdlPosV->z);
-						//studioPosScale[mdlAnimRle->bone].Print(mdlAnimRle->bone);
-					//}
-				}
-
-
-				if (mdlAnimRle->flags & RTECH_ANIM_ANIMPOS && !pMdlPosV->IsAllZero()) {
-					pRseqPosV = PTR_FROM_IDX(r5::studioanimvalue_ptr_t, g_model.pData, write_offset);
-					write_offset += sizeof(r5::studioanimvalue_ptr_t);
-					flags |= 0x1;
-				}
-
-				if (mdlAnimRle->flags & RTECH_ANIM_ANIMROT && !pMdlRotV->IsAllZero()) {
-					pRseqRotV = PTR_FROM_IDX(r5::studioanimvalue_ptr_t, g_model.pData, write_offset);
-					write_offset += sizeof(r5::studioanimvalue_ptr_t);
-					flags |= 0x2;
-
-				}
-
-				//write animvalue
-				std::vector<int> idx_offset;
-				if (mdlAnimRle->flags & RTECH_ANIM_ANIMPOS && !pMdlPosV->IsAllZero()) {
-					rseqAnimRle->flags |= 0x4;
-					if (pMdlPosV->x) {
-						pRseqPosV->flags |= 4;
-						read_offset = tmp_p + pMdlPosV->x;
-						ProcessAnimValue(read_offset, write_offset, mdlAnimRle, pRseqPosV, num_frames, idx_offset, studioPosScale[mdlAnimRle->bone].Min(), studioPosScale[mdlAnimRle->bone].x);
+					if (section == num_sections - 1) {
+						num_frames = pStudioAnimDesc[blend].numframes - ((num_sections - 2) * pStudioAnimDesc[blend].sectionframes + 1);
 					}
-					else idx_offset.push_back(0);
-					if (pMdlPosV->y) {
-						pRseqPosV->flags |= 2;
-						read_offset = tmp_p + pMdlPosV->y;
-						ProcessAnimValue(read_offset, write_offset, mdlAnimRle, pRseqPosV, num_frames, idx_offset, studioPosScale[mdlAnimRle->bone].Min(), studioPosScale[mdlAnimRle->bone].y);
-					}
-					else idx_offset.push_back(0);
-					if (pMdlPosV->z) {
-						pRseqPosV->flags |= 1;
-						read_offset = tmp_p + pMdlPosV->z;
-						ProcessAnimValue(read_offset, write_offset, mdlAnimRle, pRseqPosV, num_frames, idx_offset, studioPosScale[mdlAnimRle->bone].Min(), studioPosScale[mdlAnimRle->bone].z);
-					}
-					else idx_offset.push_back(0);
-					idx_offset.push_back(0);
-					idx_offset.push_back(0);
-
-					while (!idx_offset.empty() && idx_offset.front() == 0) idx_offset.erase(idx_offset.begin());
-
-					pRseqPosV->offset = idx_offset.at(0) * 2;
-					pRseqPosV->idx1 = max(idx_offset.at(1) - idx_offset.at(0), 0);
-					pRseqPosV->idx2 = max(idx_offset.at(2) - idx_offset.at(0), 0);
-
 				}
 
-				idx_offset.clear();
-				if (mdlAnimRle->flags & RTECH_ANIM_ANIMROT && !pMdlRotV->IsAllZero()) {
-					rseqAnimRle->flags |= 0x2;
-					if (pMdlRotV->x) {
-						pRseqRotV->flags |= 4;
-						read_offset = tmp_r + pMdlRotV->x;
-						ProcessAnimValue(read_offset, write_offset, mdlAnimRle, pRseqRotV, num_frames, idx_offset, 0.00019175345f, studioRotScale[mdlAnimRle->bone].x);
-					}
-					else idx_offset.push_back(0);
-					if (pMdlRotV->y) {
-						pRseqRotV->flags |= 2;
-						read_offset = tmp_r + pMdlRotV->y;
-						ProcessAnimValue(read_offset, write_offset, mdlAnimRle, pRseqRotV, num_frames, idx_offset, 0.00019175345f, studioRotScale[mdlAnimRle->bone].y);
-					}
-					else idx_offset.push_back(0);
-					if (pMdlRotV->z) {
-						pRseqRotV->flags |= 1;
-						read_offset = tmp_r + pMdlRotV->z;
-						ProcessAnimValue(read_offset, write_offset, mdlAnimRle, pRseqRotV, num_frames, idx_offset, 0.00019175345f, studioRotScale[mdlAnimRle->bone].z);
-					}
-					else idx_offset.push_back(0);
-					idx_offset.push_back(0);
-					idx_offset.push_back(0);
+				//boneflagarray (allocate)
+				char* boneflagarray = reinterpret_cast<char*>(g_model.pData);
+				std::vector<unsigned int> flaggedbones(pV49MdlHdr->numbones + 1, 0);
+				g_model.pData += ((pV49MdlHdr->numbones + 3) / 2) % 2 == 1 ? (pV49MdlHdr->numbones + 3) / 2 - 1 : (pV49MdlHdr->numbones + 3) / 2;
 
-					while (!idx_offset.empty() && idx_offset.front() == 0) idx_offset.erase(idx_offset.begin()); //remove 0s in the front
+				//animvalue
+				int anim_block_offset = 0;
+				for (int i = 0; i < pV49MdlHdr->numbones; i++) {
+					mstudio_rle_anim_t* mdlAnimRle{};
 
-					pRseqRotV->offset = idx_offset.at(0) * 2;
-					pRseqRotV->idx1 = max(idx_offset.at(1) - idx_offset.at(0), 0);
-					pRseqRotV->idx2 = max(idx_offset.at(2) - idx_offset.at(0), 0);
+					if (hasSections) {
+						mdlAnimRle = PTR_FROM_IDX(mstudio_rle_anim_t, mdl_buffer - animbase_ptr, animsections[section].animindex + anim_block_offset);
+					}
+					else {
+						mdlAnimRle = PTR_FROM_IDX(mstudio_rle_anim_t, mdl_buffer - animbase_ptr, pStudioAnimDesc[blend].animindex + anim_block_offset);
+					}
+
+					r5::mstudio_rle_anim_t* rseqAnimRle = reinterpret_cast<r5::mstudio_rle_anim_t*>(g_model.pData);
+					rseqAnimRle->flags = 0;
+					int read_offset = sizeof(mstudio_rle_anim_t);
+					int write_offset = sizeof(r5::mstudio_rle_anim_t);
+					int flags = 0;
+					int tmp_r, tmp_p;
+
+					r5::studioanimvalue_ptr_t* pRseqRotV{};
+					r5::studioanimvalue_ptr_t* pRseqPosV{};
+					studioanimvalue_ptr_t* pMdlRotV{};
+					studioanimvalue_ptr_t* pMdlPosV{};
+
+					//alloc posscale
+					if (mdlAnimRle->flags & RTECH_ANIM_ANIMPOS) {
+						float* posscale = PTR_FROM_IDX(float, g_model.pData, write_offset);
+						*posscale = studioPosScale[i].Min();
+						write_offset += 4;
+					}
+					//raw data
+					if (mdlAnimRle->flags & RTECH_ANIM_RAWPOS) {
+						Vector48* rseqRawpos = PTR_FROM_IDX(Vector48, g_model.pData, write_offset);
+						Vector48* mdlRawpos = PTR_FROM_IDX(Vector48, mdlAnimRle, ((mdlAnimRle->flags & STUDIO_ANIM_RAWROT) ? 12 : read_offset));
+						rseqRawpos->x = mdlRawpos->x;
+						rseqRawpos->y = mdlRawpos->y;
+						rseqRawpos->z = mdlRawpos->z;
+						flags |= 0x1;
+						write_offset += 6;
+					}
+
+					if (mdlAnimRle->flags & STUDIO_ANIM_RAWROT) {
+						Quaternion64* rseqRawrot = PTR_FROM_IDX(Quaternion64, g_model.pData, write_offset);
+						Quaternion64* mdlRawrot = PTR_FROM_IDX(Quaternion64, mdlAnimRle, read_offset);
+						rseqRawrot->x = mdlRawrot->x;
+						rseqRawrot->y = mdlRawrot->y;
+						rseqRawrot->z = mdlRawrot->z;
+						rseqRawrot->wneg = mdlRawrot->wneg;
+						flags |= 0x2;
+						write_offset += 8;
+					}
+
+					//animvalue_ptr
+					if (mdlAnimRle->flags & RTECH_ANIM_ANIMROT) {
+						pMdlRotV = PTR_FROM_IDX(studioanimvalue_ptr_t, mdlAnimRle, read_offset);
+						tmp_r = read_offset;
+						read_offset += sizeof(studioanimvalue_ptr_t);
+						//if (!pMdlRotV->IsAllZero()) {
+							//printf("%d   rotv: %d %d %d\n", mdlAnimRle->bone, pMdlRotV->x, pMdlRotV->y, pMdlRotV->z);
+							//studioRotScale[mdlAnimRle->bone].Print(mdlAnimRle->bone);
+						//}
+					}
+					if (mdlAnimRle->flags & RTECH_ANIM_ANIMPOS) {
+						pMdlPosV = PTR_FROM_IDX(studioanimvalue_ptr_t, mdlAnimRle, read_offset);
+						tmp_p = read_offset;
+						read_offset += sizeof(studioanimvalue_ptr_t);
+						//if (!pMdlPosV->IsAllZero()) {
+							//printf("%d   posv: %d %d %d\n", mdlAnimRle->bone, pMdlPosV->x, pMdlPosV->y, pMdlPosV->z);
+							//studioPosScale[mdlAnimRle->bone].Print(mdlAnimRle->bone);
+						//}
+					}
+
+
+					if (mdlAnimRle->flags & RTECH_ANIM_ANIMPOS && !pMdlPosV->IsAllZero()) {
+						pRseqPosV = PTR_FROM_IDX(r5::studioanimvalue_ptr_t, g_model.pData, write_offset);
+						write_offset += sizeof(r5::studioanimvalue_ptr_t);
+						flags |= 0x1;
+					}
+
+					if (mdlAnimRle->flags & RTECH_ANIM_ANIMROT && !pMdlRotV->IsAllZero()) {
+						pRseqRotV = PTR_FROM_IDX(r5::studioanimvalue_ptr_t, g_model.pData, write_offset);
+						write_offset += sizeof(r5::studioanimvalue_ptr_t);
+						flags |= 0x2;
+
+					}
+
+					//write animvalue
+					std::vector<int> idx_offset;
+					if (mdlAnimRle->flags & RTECH_ANIM_ANIMPOS && !pMdlPosV->IsAllZero()) {
+						rseqAnimRle->flags |= 0x4;
+						if (pMdlPosV->x) {
+							pRseqPosV->flags |= 4;
+							read_offset = tmp_p + pMdlPosV->x;
+							ProcessAnimValue(read_offset, write_offset, mdlAnimRle, pRseqPosV, num_frames, idx_offset, studioPosScale[mdlAnimRle->bone].Min(), studioPosScale[mdlAnimRle->bone].x);
+						}
+						else idx_offset.push_back(0);
+						if (pMdlPosV->y) {
+							pRseqPosV->flags |= 2;
+							read_offset = tmp_p + pMdlPosV->y;
+							ProcessAnimValue(read_offset, write_offset, mdlAnimRle, pRseqPosV, num_frames, idx_offset, studioPosScale[mdlAnimRle->bone].Min(), studioPosScale[mdlAnimRle->bone].y);
+						}
+						else idx_offset.push_back(0);
+						if (pMdlPosV->z) {
+							pRseqPosV->flags |= 1;
+							read_offset = tmp_p + pMdlPosV->z;
+							ProcessAnimValue(read_offset, write_offset, mdlAnimRle, pRseqPosV, num_frames, idx_offset, studioPosScale[mdlAnimRle->bone].Min(), studioPosScale[mdlAnimRle->bone].z);
+						}
+						else idx_offset.push_back(0);
+						idx_offset.push_back(0);
+						idx_offset.push_back(0);
+
+						while (!idx_offset.empty() && idx_offset.front() == 0) idx_offset.erase(idx_offset.begin());
+
+						pRseqPosV->offset = idx_offset.at(0) * 2;
+						pRseqPosV->idx1 = max(idx_offset.at(1) - idx_offset.at(0), 0);
+						pRseqPosV->idx2 = max(idx_offset.at(2) - idx_offset.at(0), 0);
+
+					}
+
+					idx_offset.clear();
+					if (mdlAnimRle->flags & RTECH_ANIM_ANIMROT && !pMdlRotV->IsAllZero()) {
+						rseqAnimRle->flags |= 0x2;
+						if (pMdlRotV->x) {
+							pRseqRotV->flags |= 4;
+							read_offset = tmp_r + pMdlRotV->x;
+							ProcessAnimValue(read_offset, write_offset, mdlAnimRle, pRseqRotV, num_frames, idx_offset, 0.00019175345f, studioRotScale[mdlAnimRle->bone].x);
+						}
+						else idx_offset.push_back(0);
+						if (pMdlRotV->y) {
+							pRseqRotV->flags |= 2;
+							read_offset = tmp_r + pMdlRotV->y;
+							ProcessAnimValue(read_offset, write_offset, mdlAnimRle, pRseqRotV, num_frames, idx_offset, 0.00019175345f, studioRotScale[mdlAnimRle->bone].y);
+						}
+						else idx_offset.push_back(0);
+						if (pMdlRotV->z) {
+							pRseqRotV->flags |= 1;
+							read_offset = tmp_r + pMdlRotV->z;
+							ProcessAnimValue(read_offset, write_offset, mdlAnimRle, pRseqRotV, num_frames, idx_offset, 0.00019175345f, studioRotScale[mdlAnimRle->bone].z);
+						}
+						else idx_offset.push_back(0);
+						idx_offset.push_back(0);
+						idx_offset.push_back(0);
+
+						while (!idx_offset.empty() && idx_offset.front() == 0) idx_offset.erase(idx_offset.begin()); //remove 0s in the front
+
+						pRseqRotV->offset = idx_offset.at(0) * 2;
+						pRseqRotV->idx1 = max(idx_offset.at(1) - idx_offset.at(0), 0);
+						pRseqRotV->idx2 = max(idx_offset.at(2) - idx_offset.at(0), 0);
+					}
+
+					/*	if (flags) {
+							printf("section:%d/%d bone:%d (%d)\n", section, num_sections, mdlAnimRle->bone, num_frames);
+						}*/
+
+						// if (mdlAnimRle->bone > pV49MdlHdr->numbones) break;
+						//printf("->%d / %d / %d\n", flaggedbones.size(), pV49MdlHdr->numbones, mdlAnimRle->bone);
+					flaggedbones.at(mdlAnimRle->bone) = flags;
+					rseqAnimRle->size = write_offset;
+					g_model.pData += write_offset;
+					anim_block_offset += mdlAnimRle->nextoffset;
+
+					if (mdlAnimRle->nextoffset == 0) break;
 				}
 
-				/*	if (flags) {
-						printf("section:%d/%d bone:%d (%d)\n", section, num_sections, mdlAnimRle->bone, num_frames);
-					}*/
-
-					// if (mdlAnimRle->bone > pV49MdlHdr->numbones) break;
-					//printf("->%d / %d / %d\n", flaggedbones.size(), pV49MdlHdr->numbones, mdlAnimRle->bone);
-				flaggedbones.at(mdlAnimRle->bone) = flags;
-				rseqAnimRle->size = write_offset;
-				g_model.pData += write_offset;
-				anim_block_offset += mdlAnimRle->nextoffset;
-
-				if (mdlAnimRle->nextoffset == 0) break;
+				//boneflagarray (write)
+				for (int i = 0; i < (flaggedbones.size()) / 2; i++) {
+					boneflagarray[i] = flaggedbones.at(i * 2);
+					boneflagarray[i] |= flaggedbones.at(i * 2 + 1) << 4;
+				}
 			}
 
-			//boneflagarray (write)
-			for (int i = 0; i < (flaggedbones.size()) / 2; i++) {
-				boneflagarray[i] = flaggedbones.at(i * 2);
-				boneflagarray[i] |= flaggedbones.at(i * 2 + 1) << 4;
-			}
+			//ikrules
+			rAnimDesc->numikrules = 1;
+			rAnimDesc->ikruleindex = g_model.pData - g_model.pBase - rseq_blends[blend_idx];
+			r5::v8::mstudioikrule_t* ikrule = reinterpret_cast<r5::v8::mstudioikrule_t*>(g_model.pData);
+			ikrule->type = 4;
+			ikrule->compressedikerrorindex = 136;
+			g_model.pData += sizeof(r5::v8::mstudioikrule_t);
 		}
-
-
-		//ikrules
-		rAnimDesc->numikrules = 1;
-		rAnimDesc->ikruleindex = g_model.pData - g_model.pBase - *blend;
-		r5::v8::mstudioikrule_t* ikrule = reinterpret_cast<r5::v8::mstudioikrule_t*>(g_model.pData);
-		ikrule->type = 4;
-		ikrule->compressedikerrorindex = 136;
-		g_model.pData += sizeof(r5::v8::mstudioikrule_t);
 
 		//unk   movement??
 		pV7RseqDesc->unkCount = 0; //14

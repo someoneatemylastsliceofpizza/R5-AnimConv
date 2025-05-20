@@ -38,12 +38,14 @@ int main(int argc, char* argv[]) {
 
 	int mdl_version = mdl_stream.read<int>();
 	printf("MDL version %d\n", mdl_version);
+
+	std::vector<std::string> sequence_names;
+	std::string rig_name;
+
 	if (mdl_version == 49) {
 		printf("Starting convert...\n");
 
 		uintmax_t mdlFileSize = std::filesystem::file_size(input_mdl);
-		std::vector<std::string> sequence_names;
-		std::string rig_name;
 
 		//RRIG
 		mdl_stream.seek(0, std::ios::beg);
