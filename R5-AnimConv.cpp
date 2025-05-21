@@ -40,7 +40,7 @@ int main(int argc, char* argv[]) {
 	printf("MDL version %d\n", mdl_version);
 
 	std::vector<std::string> sequence_names;
-	std::string rig_name;
+	std::string rig_name = "CANNOT LOAD RRIG NAME";
 
 	if (mdl_version == 49) {
 		printf("Starting convert...\n");
@@ -51,7 +51,7 @@ int main(int argc, char* argv[]) {
 		mdl_stream.seek(0, std::ios::beg);
 		char* buffer = new char[mdlFileSize];
 		mdl_stream.R()->read(buffer, mdlFileSize);
-		rig_name = ConvertMDL_RRIG(buffer, output_dir, filename);
+		rig_name = ConvertMDL_RRIG(buffer, output_dir, filename); //TODO: auto adding nodedata
 		//RSEQ
 		mdl_stream.seek(0, std::ios::beg);
 		buffer = new char[mdlFileSize];

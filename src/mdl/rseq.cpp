@@ -60,6 +60,8 @@ std::vector<std::string> ConvertMDL_RSEQ(char* mdl_buffer, std::string output_di
 		pV7RseqDesc->paramparent = pStudioSeqDesc[seq_idx].paramparent;
 		pV7RseqDesc->fadeintime = pStudioSeqDesc[seq_idx].fadeintime;
 		pV7RseqDesc->fadeouttime = pStudioSeqDesc[seq_idx].fadeouttime;
+		pV7RseqDesc->localentrynode = pStudioSeqDesc[seq_idx].localentrynode;
+		pV7RseqDesc->localexitnode = pStudioSeqDesc[seq_idx].localexitnode;
 		pV7RseqDesc->entryphase = pStudioSeqDesc[seq_idx].entryphase;
 		pV7RseqDesc->exitphase = pStudioSeqDesc[seq_idx].exitphase;
 		pV7RseqDesc->numikrules = 1;
@@ -72,15 +74,20 @@ std::vector<std::string> ConvertMDL_RSEQ(char* mdl_buffer, std::string output_di
 		AddToStringTable((char*)pV7RseqDesc, &pV7RseqDesc->szactivitynameindex, STRING_FROM_IDX(reinterpret_cast<char*>(mdl_buffer - base_ptr), pStudioSeqDesc[seq_idx].szactivitynameindex));
 
 		//posekey
-		int numposekey = pV7RseqDesc->groupsize[0] + pV7RseqDesc->groupsize[1];
-		pV7RseqDesc->posekeyindex = g_model.pData - g_model.pBase;
+		if (pStudioSeqDesc[seq_idx].posekeyindex) {
+			int numposekey = pV7RseqDesc->groupsize[0] + pV7RseqDesc->groupsize[1];
+			pV7RseqDesc->posekeyindex = g_model.pData - g_model.pBase;
 
-		float* studioPoseKey = PTR_FROM_IDX(float, &pStudioSeqDesc[seq_idx], pStudioSeqDesc[seq_idx].posekeyindex);
-		float* posekey = reinterpret_cast<float*>(g_model.pData);
-		for (int i = 0; i < numposekey; i++) {
-			posekey[i] = studioPoseKey[i];
+			float* studioPoseKey = PTR_FROM_IDX(float, &pStudioSeqDesc[seq_idx], pStudioSeqDesc[seq_idx].posekeyindex);
+			float* posekey = reinterpret_cast<float*>(g_model.pData);
+			for (int i = 0; i < pV7RseqDesc->groupsize[0]; i++) {
+				posekey[i] = studioPoseKey[i];
+			}
+			for (int i = pV7RseqDesc->groupsize[0]; i < pV7RseqDesc->groupsize[1]; i++) {
+				posekey[i] = 0;//
+			}
+			g_model.pData += sizeof(float) * (numposekey);
 		}
-		g_model.pData += sizeof(float) * (numposekey);
 
 		//events
 		pV7RseqDesc->eventindex = g_model.pData - g_model.pBase;
@@ -108,9 +115,19 @@ std::vector<std::string> ConvertMDL_RSEQ(char* mdl_buffer, std::string output_di
 		pV7RseqDesc->numactivitymodifiers = pStudioSeqDesc[seq_idx].numactivitymodifiers;
 		int* mstudioActivityModifier = PTR_FROM_IDX(int, &pStudioSeqDesc[seq_idx], pStudioSeqDesc[seq_idx].activitymodifierindex);
 		r5::v8::mstudioactivitymodifier_t* rseqActivityModifier = reinterpret_cast<r5::v8::mstudioactivitymodifier_t*>(g_model.pData);
+		std::vector<std::string> activity_name{};
 		for (int i = 0; i < pV7RseqDesc->numactivitymodifiers; i++) {
-			AddToStringTable((char*)&rseqActivityModifier[i], &rseqActivityModifier[i].sznameindex, STRING_FROM_IDX(&mstudioActivityModifier[i], mstudioActivityModifier[i]));
-			rseqActivityModifier[i].negate = 0; //
+			std::string tmp = STRING_FROM_IDX(&mstudioActivityModifier[i], mstudioActivityModifier[i]); //
+			if (tmp.size() >= 2 && tmp.compare(tmp.size() - 2, 2, "_1") == 0) {						    // if activitymodifier is negate add _1 at the end of the name
+				tmp.erase(tmp.size() - 2, 2);															// eg. activitymodifier crouch_1
+				rseqActivityModifier[i].negate = 1;														//
+            } else {
+                rseqActivityModifier[i].negate = 0;
+            }
+			activity_name.push_back(tmp);
+		}
+		for (int i = 0; i < pV7RseqDesc->numactivitymodifiers; i++) {
+			AddToStringTable((char*)&rseqActivityModifier[i], &rseqActivityModifier[i].sznameindex, activity_name.at(i).c_str());
 		}
 		g_model.pData += sizeof(r5::v8::mstudioactivitymodifier_t) * pV7RseqDesc->numactivitymodifiers;
 
@@ -128,14 +145,11 @@ std::vector<std::string> ConvertMDL_RSEQ(char* mdl_buffer, std::string output_di
 			char* anim_name = (char *)STRING_FROM_IDX(mdl_buffer, pStudioAnimDesc[blend].sznameindex - pStudioAnimDesc[blend].baseptr);
 			rseq_blends[blend_idx] = g_model.pData - g_model.pBase;
 			rAnimDesc->fps = pStudioAnimDesc[blend].fps;
-			rAnimDesc->flags = (pStudioAnimDesc[blend].numframes > 0 ? 0x20000 : 0x0) | pStudioAnimDesc[blend].flags & 0xF;//
+			rAnimDesc->flags = (pStudioAnimDesc[blend].numframes > 0 ? 0x20000 : 0x0) | pStudioAnimDesc[blend].flags;
 			rAnimDesc->numframes = pStudioAnimDesc[blend].numframes;
-           
 			AddToStringTable(reinterpret_cast<char*>(rAnimDesc), &rAnimDesc->sznameindex, anim_name);
-
 			g_model.pData += sizeof(r5::v8::mstudioanimdesc_t);
 			ALIGN16(g_model.pData);
-
 
 			//anims
 			mstudioanimsections_t* animsections = nullptr;
@@ -158,7 +172,6 @@ std::vector<std::string> ConvertMDL_RSEQ(char* mdl_buffer, std::string output_di
 			rAnimDesc->sectionframes = pStudioAnimDesc[blend].sectionframes;
 
 			for (size_t section = 0; section < num_sections; section++) {
-
 				if (hasSections) {
 					sections_index[section] = g_model.pData - (char*)rAnimDesc;
 					num_frames = pStudioAnimDesc[blend].sectionframes + 1;
@@ -190,6 +203,7 @@ std::vector<std::string> ConvertMDL_RSEQ(char* mdl_buffer, std::string output_di
 					int read_offset = sizeof(mstudio_rle_anim_t);
 					int write_offset = sizeof(r5::mstudio_rle_anim_t);
 					int flags = 0;
+					bool additive_flag = 0;//pV7RseqDesc->flags & 0x0004;
 					int tmp_r, tmp_p;
 
 					r5::studioanimvalue_ptr_t* pRseqRotV{};
@@ -197,7 +211,7 @@ std::vector<std::string> ConvertMDL_RSEQ(char* mdl_buffer, std::string output_di
 					studioanimvalue_ptr_t* pMdlRotV{};
 					studioanimvalue_ptr_t* pMdlPosV{};
 
-					//alloc posscale
+					//posscale
 					if (mdlAnimRle->flags & RTECH_ANIM_ANIMPOS) {
 						float* posscale = PTR_FROM_IDX(float, g_model.pData, write_offset);
 						*posscale = studioPosScale[i].Min();
@@ -327,8 +341,6 @@ std::vector<std::string> ConvertMDL_RSEQ(char* mdl_buffer, std::string output_di
 							printf("section:%d/%d bone:%d (%d)\n", section, num_sections, mdlAnimRle->bone, num_frames);
 						}*/
 
-						// if (mdlAnimRle->bone > pV49MdlHdr->numbones) break;
-						//printf("->%d / %d / %d\n", flaggedbones.size(), pV49MdlHdr->numbones, mdlAnimRle->bone);
 					flaggedbones.at(mdlAnimRle->bone) = flags;
 					rseqAnimRle->size = write_offset;
 					g_model.pData += write_offset;
