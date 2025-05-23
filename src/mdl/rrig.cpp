@@ -5,8 +5,8 @@
 
 void WritePreHeader(r5::v8::studiohdr_t* pV54RrigHdr, studiohdr_t* v49MdlHdr);
 
-std::string ConvertMDL_RRIG(char* mdl_buffer, std::string output_dir, std::string filename) {
-	printf("Convering Rrig...\n");
+std::string ConvertMDL_RRIG(char* mdl_buffer, std::string output_dir, std::string filename, std::vector<std::pair<std::pair<int, int>, int>>&nodedata) {
+	printf("Converting rrig...\n");
 	g_model.pBase = new char[32 * 1024 * 1024] {};
 	g_model.pData = g_model.pBase;
 
@@ -99,6 +99,7 @@ std::string ConvertMDL_RRIG(char* mdl_buffer, std::string output_dir, std::strin
 	char* v49nodedata = reinterpret_cast<char*>((mdl_buffer + pV49MdlHdr->localnodeindex));
 	short* v54nodedata = reinterpret_cast<short*>(g_model.pData);
 	int offset = 0;
+	int c_node = 0;
 	for (int i = 0; i < pV54RrigHdr->numlocalnodes; i++) {
 		v54nodedataindex[i] = g_model.pData - g_model.pBase;
 
@@ -118,7 +119,12 @@ std::string ConvertMDL_RRIG(char* mdl_buffer, std::string output_dir, std::strin
 		g_model.pData += sizeof(int);
 		for (int j = 0; j < nodecount; j++) {
 			v54nodedata[offset] = v49nodedata_buffer.at(j);
-			v54nodedata[offset + 1] = 0x00; // need to write it later (010 editor)
+            for (const auto& node : nodedata) {
+				if (node.first == std::pair{ i + 1, v49nodedata_buffer.at(j) }) {
+					v54nodedata[offset + 1] = node.second;
+					break;
+				}
+            }
 			offset += 2;
 			g_model.pData += sizeof(int);
 		};
@@ -126,7 +132,7 @@ std::string ConvertMDL_RRIG(char* mdl_buffer, std::string output_dir, std::strin
 
 	//pose param
 	pV54RrigHdr->localposeparamindex = g_model.pData - g_model.pBase;
-	pV54RrigHdr->numlocalposeparameters = pV49MdlHdr->numlocalposeparameters; //why does studiomdl add blank one at the end? remove it cause a crash
+	pV54RrigHdr->numlocalposeparameters = pV49MdlHdr->numlocalposeparameters;
 	mstudioposeparamdesc_t* v49poseparam = PTR_FROM_IDX(mstudioposeparamdesc_t, mdl_buffer, pV49MdlHdr->localposeparamindex);
 	r5::v8::mstudioposeparamdesc_t* v54poseparam = reinterpret_cast<r5::v8::mstudioposeparamdesc_t*>(g_model.pData);
 	for (int i = 0; i < pV54RrigHdr->numlocalposeparameters; i++) {
@@ -154,7 +160,7 @@ std::string ConvertMDL_RRIG(char* mdl_buffer, std::string output_dir, std::strin
 		v54ikchain[i].linkindex = g_model.pData - PTR_FROM_IDX(char, &v54ikchain[i], 0);
 		mstudioiklink_t* v49iklink = PTR_FROM_IDX(mstudioiklink_t, &v49ikchain[i], v49ikchain[i].linkindex);
 		r5::v8::mstudioiklink_t* v54iklink = reinterpret_cast<r5::v8::mstudioiklink_t*>(g_model.pData);
-		v54iklink[0].bone = v49iklink[0].bone - 2;// mdl is automatic selected the bone :(
+		v54iklink[0].bone = v49iklink[0].bone;// :(
 		v54iklink[1].bone = v49iklink[1].bone;
 		v54iklink[2].bone = v49iklink[2].bone;
 		g_model.pData += sizeof(r5::v8::mstudioiklink_t) * v54ikchain->numlinks;

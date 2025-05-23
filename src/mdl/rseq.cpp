@@ -5,7 +5,7 @@
 
 void ProcessAnimValue(int& read_offset, int& write_offset, mstudio_rle_anim_t* mdlAnimRle, r5::studioanimvalue_ptr_t* pRseqValue, int numframe, std::vector<int>& idx_offset, float newScale, float oldScale);
 
-std::vector<std::string> ConvertMDL_RSEQ(char* mdl_buffer, std::string output_dir, std::string filename) {
+std::vector<std::string> ConvertMDL_RSEQ(char* mdl_buffer, std::string output_dir, std::string filename, std::vector<std::pair<std::pair<int, int>, int>> &nodedata) {
 	studiohdr_t* pV49MdlHdr = reinterpret_cast<studiohdr_t*>(mdl_buffer);
 	studiohdr2_t* pV49MdlHdr2 = PTR_FROM_IDX(studiohdr2_t, mdl_buffer, sizeof(studiohdr_t));
 	mstudioseqdesc_t* pStudioSeqDesc = reinterpret_cast<mstudioseqdesc_t*>((mdl_buffer + pV49MdlHdr->localseqindex));
@@ -38,13 +38,16 @@ std::vector<std::string> ConvertMDL_RSEQ(char* mdl_buffer, std::string output_di
 		if (seqdescname != "ref.rseq")
 			sequence_names.push_back(seqdescname);
 
+		if(pStudioSeqDesc[seq_idx].localentrynode != pStudioSeqDesc[seq_idx].localexitnode)
+			nodedata.push_back({ {pStudioSeqDesc[seq_idx].localentrynode , pStudioSeqDesc[seq_idx].localexitnode}, seq_idx - 1 /*doesn't include ref.rseq*/});
+
 		//header
 		g_model.pBase = new char[32 * 1024 * 1024] {};
 		g_model.pData = g_model.pBase;
 		r5::v8::mstudioseqdesc_t* pV7RseqDesc = reinterpret_cast<r5::v8::mstudioseqdesc_t*>(g_model.pData);
 		pV7RseqDesc->flags = pStudioSeqDesc[seq_idx].flags;
-		pV7RseqDesc->activity = -1.0f;
-		pV7RseqDesc->actweight = 1.0f;
+		pV7RseqDesc->activity = pStudioSeqDesc[seq_idx].activity;
+		pV7RseqDesc->actweight = pStudioSeqDesc[seq_idx].actweight;
 		pV7RseqDesc->numevents = pStudioSeqDesc[seq_idx].numevents;
 		pV7RseqDesc->bbmin = pStudioSeqDesc[seq_idx].bbmin;
 		pV7RseqDesc->bbmax = pStudioSeqDesc[seq_idx].bbmax;
@@ -73,18 +76,15 @@ std::vector<std::string> ConvertMDL_RSEQ(char* mdl_buffer, std::string output_di
 		AddToStringTable((char*)pV7RseqDesc, &pV7RseqDesc->szlabelindex, seqdescname.c_str());
 		AddToStringTable((char*)pV7RseqDesc, &pV7RseqDesc->szactivitynameindex, STRING_FROM_IDX(reinterpret_cast<char*>(mdl_buffer - base_ptr), pStudioSeqDesc[seq_idx].szactivitynameindex));
 
-		//posekey
+		//posekey 
 		if (pStudioSeqDesc[seq_idx].posekeyindex) {
 			int numposekey = pV7RseqDesc->groupsize[0] + pV7RseqDesc->groupsize[1];
 			pV7RseqDesc->posekeyindex = g_model.pData - g_model.pBase;
 
 			float* studioPoseKey = PTR_FROM_IDX(float, &pStudioSeqDesc[seq_idx], pStudioSeqDesc[seq_idx].posekeyindex);
 			float* posekey = reinterpret_cast<float*>(g_model.pData);
-			for (int i = 0; i < pV7RseqDesc->groupsize[0]; i++) {
+			for (int i = 0; i < numposekey; i++) {
 				posekey[i] = studioPoseKey[i];
-			}
-			for (int i = pV7RseqDesc->groupsize[0]; i < pV7RseqDesc->groupsize[1]; i++) {
-				posekey[i] = 0;//
 			}
 			g_model.pData += sizeof(float) * (numposekey);
 		}
@@ -356,13 +356,21 @@ std::vector<std::string> ConvertMDL_RSEQ(char* mdl_buffer, std::string output_di
 				}
 			}
 
+			//TODO:
 			//ikrules
-			rAnimDesc->numikrules = 1;
+			/*rAnimDesc->numikrules = pStudioAnimDesc->numikrules;
 			rAnimDesc->ikruleindex = g_model.pData - g_model.pBase - rseq_blends[blend_idx];
+			r5::v8::mstudioikrule_t* v49ikrule = PTR_FROM_IDX(r5::v8::mstudioikrule_t, mdl_buffer - animbase_ptr, pStudioAnimDesc[blend].ikruleindex);
 			r5::v8::mstudioikrule_t* ikrule = reinterpret_cast<r5::v8::mstudioikrule_t*>(g_model.pData);
-			ikrule->type = 4;
-			ikrule->compressedikerrorindex = 136;
-			g_model.pData += sizeof(r5::v8::mstudioikrule_t);
+			for (int i = 0; i < rAnimDesc->numikrules; i++) {
+				ikrule[i].chain = v49ikrule[i].chain;
+				ikrule[i].type = v49ikrule[i].type;
+				ikrule[i].bone = v49ikrule[i].bone;
+				ikrule[i].start = v49ikrule[i].start;
+				ikrule[i].end = v49ikrule[i].end;
+				ikrule[i].compressedikerrorindex = v49ikrule[i].compressedikerrorindex;
+			}
+			g_model.pData += sizeof(r5::v8::mstudioikrule_t);*/
 		}
 
 		//unk   movement??

@@ -41,22 +41,24 @@ int main(int argc, char* argv[]) {
 
 	std::vector<std::string> sequence_names;
 	std::string rig_name = "CANNOT LOAD RRIG NAME";
+	                    //seq            in   out
+	std::vector<std::pair<std::pair<int, int>, int>> nodedata;
 
 	if (mdl_version == 49) {
-		printf("Starting convert...\n");
+		printf("Starting...\n");
 
 		uintmax_t mdlFileSize = std::filesystem::file_size(input_mdl);
 
-		//RRIG
+		//RSEQ
 		mdl_stream.seek(0, std::ios::beg);
 		char* buffer = new char[mdlFileSize];
 		mdl_stream.R()->read(buffer, mdlFileSize);
-		rig_name = ConvertMDL_RRIG(buffer, output_dir, filename); //TODO: auto adding nodedata
-		//RSEQ
+		sequence_names = ConvertMDL_RSEQ(buffer, output_dir, filename, nodedata);
+		//RRIG
 		mdl_stream.seek(0, std::ios::beg);
 		buffer = new char[mdlFileSize];
 		mdl_stream.R()->read(buffer, mdlFileSize);
-		sequence_names = ConvertMDL_RSEQ(buffer, output_dir, filename);
+		rig_name = ConvertMDL_RRIG(buffer, output_dir, filename, nodedata);
 		delete[] buffer;
 
 		printf("\n//----------------------------------------------------------------------\n");
