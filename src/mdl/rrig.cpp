@@ -4,6 +4,7 @@
 #include <filesystem>
 
 void WritePreHeader(r5::v8::studiohdr_t* pV54RrigHdr, studiohdr_t* v49MdlHdr);
+void SetFlagForDescendants(r5::v8::mstudiobone_t* bones, int numbones, int parentIdx, int flag);
 
 std::string ConvertMDL_RRIG(char* mdl_buffer, std::string output_dir, std::string filename, std::vector<std::pair<std::pair<int, int>, int>>&nodedata) {
 	printf("Converting rrig...\n");
@@ -35,34 +36,34 @@ std::string ConvertMDL_RRIG(char* mdl_buffer, std::string output_dir, std::strin
 
 	// Bones
 	pV54RrigHdr->boneindex = g_model.pData - g_model.pBase;
+	r5::v8::mstudiobone_t* v54bone = reinterpret_cast<r5::v8::mstudiobone_t*>(g_model.pData);
+	mstudiobone_t* v49bone = reinterpret_cast<mstudiobone_t*>(mdl_buffer + pV49MdlHdr->boneindex);
 	for (int i = 0; i < pV54RrigHdr->numbones; i++) {
-		mstudiobone_t* v49bone = reinterpret_cast<mstudiobone_t*>((mdl_buffer + pV49MdlHdr->boneindex + sizeof(mstudiobone_t) * i));
-		r5::v8::mstudiobone_t* v54bone = reinterpret_cast<r5::v8::mstudiobone_t*>(g_model.pData);
-		const char* bone_name = STRING_FROM_IDX(v49bone, v49bone->sznameindex);
-		AddToStringTable((char*)v54bone, &v54bone->sznameindex, bone_name);
-		v54bone->parent = v49bone->parent;
-		v54bone->bonecontroller[0] = v49bone->bonecontroller[0];
-		v54bone->bonecontroller[1] = v49bone->bonecontroller[1];
-		v54bone->bonecontroller[2] = v49bone->bonecontroller[2];
-		v54bone->bonecontroller[3] = v49bone->bonecontroller[3];
-		v54bone->bonecontroller[4] = v49bone->bonecontroller[4];
-		v54bone->bonecontroller[5] = v49bone->bonecontroller[5];
-		v54bone->pos = v49bone->pos;//
-		v54bone->quat = v49bone->quat;//
-		v54bone->rot = v49bone->rot; //
-		v54bone->scale = Vector3{1,1,1};
-		v54bone->poseToBone = v49bone->poseToBone;
-		v54bone->qAlignment = v49bone->qAlignment;
-		v54bone->flags = v49bone->flags;
-		v54bone->proctype = 0;
-		v54bone->procindex = 0;
-		v54bone->physicsbone = 0;
-		AddToStringTable((char*)v54bone, &v54bone->surfacepropidx, STRING_FROM_IDX(v49bone, v49bone->surfacepropidx));
-		v54bone->contents = v49bone->contents;
-		v54bone->surfacepropLookup = v49bone->surfacepropLookup;
-		g_model.pHdr = v54bone;
-		g_model.pData += sizeof(r5::v8::mstudiobone_t);
+		const char* bone_name = STRING_FROM_IDX(&v49bone[i], v49bone[i].sznameindex);
+		AddToStringTable((char*)&v54bone[i], &v54bone[i].sznameindex, bone_name);
+		v54bone[i].parent = v49bone[i].parent;
+		v54bone[i].bonecontroller[0] = v49bone[i].bonecontroller[0];
+		v54bone[i].bonecontroller[1] = v49bone[i].bonecontroller[1];
+		v54bone[i].bonecontroller[2] = v49bone[i].bonecontroller[2];
+		v54bone[i].bonecontroller[3] = v49bone[i].bonecontroller[3];
+		v54bone[i].bonecontroller[4] = v49bone[i].bonecontroller[4];
+		v54bone[i].bonecontroller[5] = v49bone[i].bonecontroller[5];
+		v54bone[i].pos = v49bone[i].pos;//
+		v54bone[i].quat = v49bone[i].quat;//
+		v54bone[i].rot = v49bone[i].rot; //
+		v54bone[i].scale = Vector3{ 1,1,1 };
+		v54bone[i].poseToBone = v49bone[i].poseToBone;
+		v54bone[i].qAlignment = v49bone[i].qAlignment;
+		v54bone[i].flags = v49bone[i].flags & ~0x40000;
+		v54bone[i].proctype = 0;
+		v54bone[i].procindex = 0;
+		v54bone[i].physicsbone = 0;
+		AddToStringTable((char*)&v54bone[i], &v54bone[i].surfacepropidx, STRING_FROM_IDX(&v49bone[i], v49bone[i].surfacepropidx));
+		v54bone[i].contents = v49bone[i].contents;
+		v54bone[i].surfacepropLookup = v49bone[i].surfacepropLookup;
 	}
+	g_model.pHdr = v54bone;
+	g_model.pData += pV54RrigHdr->numbones * sizeof(r5::v8::mstudiobone_t);
 
 	//TODO:
 	//hboxset
@@ -151,7 +152,7 @@ std::string ConvertMDL_RRIG(char* mdl_buffer, std::string output_dir, std::strin
 		AddToStringTable((char*)&v54ikchain[i], &v54ikchain[i].sznameindex, STRING_FROM_IDX(&v49ikchain[i], v49ikchain[i].sznameindex));
 		v54ikchain[i].linktype = v49ikchain[i].linktype;
 		v54ikchain[i].numlinks = v49ikchain[i].numlinks;
-		v54ikchain[i].unk = 0x3F5DB3D7;//
+		v54ikchain[i].unk = 0.707f;//
 	}
 	g_model.pData += sizeof(r5::v8::mstudioikchain_t) * pV54RrigHdr->numikchains;
 
@@ -163,6 +164,9 @@ std::string ConvertMDL_RRIG(char* mdl_buffer, std::string output_dir, std::strin
 		v54iklink[0].bone = v49iklink[0].bone;// :(
 		v54iklink[1].bone = v49iklink[1].bone;
 		v54iklink[2].bone = v49iklink[2].bone;
+
+		v54bone[v54iklink[0].bone].flags |= 0x20;
+		SetFlagForDescendants(v54bone, pV54RrigHdr->numbones, v54iklink[0].bone, 0x20);
 		g_model.pData += sizeof(r5::v8::mstudioiklink_t) * v54ikchain->numlinks;
 	}
 
@@ -225,4 +229,14 @@ void WritePreHeader(r5::v8::studiohdr_t* pV54RrigHdr, studiohdr_t* v49MdlHdr) {
 	pV54RrigHdr->numAllowedRootLODs = v49MdlHdr->numAllowedRootLODs;
 	pV54RrigHdr->defaultFadeDist = -1;
 	pV54RrigHdr->flVertAnimFixedPointScale = v49MdlHdr->flVertAnimFixedPointScale;
+}
+
+
+void SetFlagForDescendants(r5::v8::mstudiobone_t* bones, int numbones, int parentIdx, int flag) {
+	for (int i = 0; i < numbones; ++i) {
+		if (bones[i].parent == parentIdx) {
+			bones[i].flags |= flag;
+			SetFlagForDescendants(bones, numbones, i, flag);
+		}
+	}
 }

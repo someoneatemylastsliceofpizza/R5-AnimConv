@@ -41,7 +41,7 @@ int main(int argc, char* argv[]) {
 
 	std::vector<std::string> sequence_names;
 	std::string rig_name = "CANNOT LOAD RRIG NAME";
-	                    //seq            in   out
+	                              //in   out   seq            
 	std::vector<std::pair<std::pair<int, int>, int>> nodedata;
 
 	if (mdl_version == 49) {

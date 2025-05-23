@@ -1092,7 +1092,7 @@ namespace r5{
 				return reinterpret_cast<mstudioiklink_t*>((char*)this + linkindex) + i;
 			}
 
-			int	unk;		// no clue what this does tbh, tweaking it does nothing
+			float	unk;		// no clue what this does tbh, tweaking it does nothing
 			// default value: 0.707f
 			// this value is similar to default source engine ikchain values
 		};
