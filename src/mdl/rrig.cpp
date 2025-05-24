@@ -48,13 +48,13 @@ std::string ConvertMDL_RRIG(char* mdl_buffer, std::string output_dir, std::strin
 		v54bone[i].bonecontroller[3] = v49bone[i].bonecontroller[3];
 		v54bone[i].bonecontroller[4] = v49bone[i].bonecontroller[4];
 		v54bone[i].bonecontroller[5] = v49bone[i].bonecontroller[5];
-		v54bone[i].pos = v49bone[i].pos;//
-		v54bone[i].quat = v49bone[i].quat;//
-		v54bone[i].rot = v49bone[i].rot; //
+		v54bone[i].pos = v49bone[i].pos;
+		v54bone[i].quat = v49bone[i].quat;
+		v54bone[i].rot = v49bone[i].rot;
 		v54bone[i].scale = Vector3{ 1,1,1 };
 		v54bone[i].poseToBone = v49bone[i].poseToBone;
 		v54bone[i].qAlignment = v49bone[i].qAlignment;
-		v54bone[i].flags = v49bone[i].flags & ~0x40000;
+		v54bone[i].flags = v49bone[i].flags & 0x200; //
 		v54bone[i].proctype = 0;
 		v54bone[i].procindex = 0;
 		v54bone[i].physicsbone = 0;
@@ -152,7 +152,7 @@ std::string ConvertMDL_RRIG(char* mdl_buffer, std::string output_dir, std::strin
 		AddToStringTable((char*)&v54ikchain[i], &v54ikchain[i].sznameindex, STRING_FROM_IDX(&v49ikchain[i], v49ikchain[i].sznameindex));
 		v54ikchain[i].linktype = v49ikchain[i].linktype;
 		v54ikchain[i].numlinks = v49ikchain[i].numlinks;
-		v54ikchain[i].unk = 0.707f;//
+		v54ikchain[i].unk = 0.707f;
 	}
 	g_model.pData += sizeof(r5::v8::mstudioikchain_t) * pV54RrigHdr->numikchains;
 
