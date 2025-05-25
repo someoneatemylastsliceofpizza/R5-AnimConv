@@ -7,7 +7,7 @@ void WritePreHeader(r5::v8::studiohdr_t* pV54RrigHdr, studiohdr_t* v49MdlHdr);
 void SetFlagForDescendants(r5::v8::mstudiobone_t* bones, int numbones, int parentIdx, int flag);
 
 std::string ConvertMDL_RRIG(char* mdl_buffer, std::string output_dir, std::string filename, std::vector<std::pair<std::pair<int, int>, int>>&nodedata) {
-	printf("Converting rrig...\n");
+	printf("\nConverting rrig...\n");
 	g_model.pBase = new char[32 * 1024 * 1024] {};
 	g_model.pData = g_model.pBase;
 
@@ -161,11 +161,13 @@ std::string ConvertMDL_RRIG(char* mdl_buffer, std::string output_dir, std::strin
 		v54ikchain[i].linkindex = g_model.pData - PTR_FROM_IDX(char, &v54ikchain[i], 0);
 		mstudioiklink_t* v49iklink = PTR_FROM_IDX(mstudioiklink_t, &v49ikchain[i], v49ikchain[i].linkindex);
 		r5::v8::mstudioiklink_t* v54iklink = reinterpret_cast<r5::v8::mstudioiklink_t*>(g_model.pData);
-		v54iklink[0].bone = v49iklink[0].bone;// :(
+		v54iklink[0].bone = v49iklink[0].bone;
 		v54iklink[1].bone = v49iklink[1].bone;
 		v54iklink[2].bone = v49iklink[2].bone;
 
 		v54bone[v54iklink[0].bone].flags |= 0x20;
+		v54bone[v54iklink[1].bone].flags |= 0x20;
+		v54bone[v54iklink[2].bone].flags |= 0x20;
 		SetFlagForDescendants(v54bone, pV54RrigHdr->numbones, v54iklink[0].bone, 0x20);
 		g_model.pData += sizeof(r5::v8::mstudioiklink_t) * v54ikchain->numlinks;
 	}
@@ -175,7 +177,7 @@ std::string ConvertMDL_RRIG(char* mdl_buffer, std::string output_dir, std::strin
 	ALIGN4(g_model.pData);
 	std::string ret_name = model_dir + filename + ".rrig";
 	std::replace(ret_name.begin(), ret_name.end(), '\\', '/');
-	printf("    ->%s\n", ret_name.c_str());
+	printf("    ->%s  ...", ret_name.c_str());
 
 	pV54RrigHdr->length = g_model.pData - g_model.pBase;
 	outRrig.write(g_model.pBase, g_model.pData - g_model.pBase);
