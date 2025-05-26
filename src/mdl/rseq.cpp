@@ -35,7 +35,14 @@ std::vector<std::string> ConvertMDL_RSEQ(char* mdl_buffer, std::string output_di
 		std::filesystem::create_directories(output_dir + "\\" + model_dir);
 
 		std::ofstream outRseq(output_path, std::ios::out | std::ios::binary);
-		printf("    ->%s  ...", seqdescname.c_str());
+		printf("    ->%s", seqdescname.c_str());
+
+#ifdef _DEBUG
+		printf("\n");
+#else
+		printf("  ...");
+#endif
+
 		if (seqdescname != "ref.rseq")
 			sequence_names.push_back(seqdescname);
 
@@ -160,14 +167,18 @@ std::vector<std::string> ConvertMDL_RSEQ(char* mdl_buffer, std::string output_di
 			int num_frames = pStudioAnimDesc[blend].numframes;
 			bool hasSections = false;
 
+#ifdef _DEBUG
+			printf("      L-> %s (%d)\n", anim_name, pStudioAnimDesc[blend].sectionframes > 0 ? (pStudioAnimDesc[blend].numframes / pStudioAnimDesc[blend].sectionframes) + 1 : 0);
+#endif
 			size_t num_sections = 1;
 			if (pStudioAnimDesc[blend].sectionindex) {
 				hasSections = true;
-				num_sections = (pStudioAnimDesc[blend].animindex - pStudioAnimDesc[blend].sectionindex) / 8 - 1;
+				num_sections = (pStudioAnimDesc[blend].numframes / pStudioAnimDesc[blend].sectionframes) + 2;
 				animsections = PTR_FROM_IDX(mstudioanimsections_t, mdl_buffer - animbase_ptr, pStudioAnimDesc[blend].sectionindex);
 				sections_index = reinterpret_cast<unsigned int*>(g_model.pData);
 				g_model.pData += 4 * num_sections;
 			}
+
 
 			rAnimDesc->animindex = g_model.pData - (char*)rAnimDesc;
 			rAnimDesc->sectionindex = hasSections ? rAnimDesc->animindex - ((num_sections) * 4 ) : 0;
@@ -214,7 +225,7 @@ std::vector<std::string> ConvertMDL_RSEQ(char* mdl_buffer, std::string output_di
 					//posscale
 					if (mdlAnimRle->flags & RTECH_ANIM_ANIMPOS) {
 						float* posscale = PTR_FROM_IDX(float, g_model.pData, write_offset);
-						*posscale = studioPosScale[mdlAnimRle->bone].Min();
+						*posscale = studioPosScale[mdlAnimRle->bone].Max();
 						write_offset += 4;
 					}
 					//raw data
@@ -281,7 +292,7 @@ std::vector<std::string> ConvertMDL_RSEQ(char* mdl_buffer, std::string output_di
 						if (pMdlPosV->x) {
 							pRseqPosV->flags |= 4;
 							read_offset = tmp_p + pMdlPosV->x;
-							ProcessAnimValue(read_offset, write_offset, mdlAnimRle, pRseqPosV, num_frames, idx_offset, studioPosScale[mdlAnimRle->bone].Min(), studioPosScale[mdlAnimRle->bone].x);
+							ProcessAnimValue(read_offset, write_offset, mdlAnimRle, pRseqPosV, num_frames, idx_offset, studioPosScale[mdlAnimRle->bone].Max(), studioPosScale[mdlAnimRle->bone].x);
 						}
 						else {
 							idx_offset.push_back(0);
@@ -289,7 +300,7 @@ std::vector<std::string> ConvertMDL_RSEQ(char* mdl_buffer, std::string output_di
 						if (pMdlPosV->y) {
 							pRseqPosV->flags |= 2;
 							read_offset = tmp_p + pMdlPosV->y;
-							ProcessAnimValue(read_offset, write_offset, mdlAnimRle, pRseqPosV, num_frames, idx_offset, studioPosScale[mdlAnimRle->bone].Min(), studioPosScale[mdlAnimRle->bone].y);
+							ProcessAnimValue(read_offset, write_offset, mdlAnimRle, pRseqPosV, num_frames, idx_offset, studioPosScale[mdlAnimRle->bone].Max(), studioPosScale[mdlAnimRle->bone].y);
 						}
 						else {
 							idx_offset.push_back(0);
@@ -297,7 +308,7 @@ std::vector<std::string> ConvertMDL_RSEQ(char* mdl_buffer, std::string output_di
 						if (pMdlPosV->z) {
 							pRseqPosV->flags |= 1;
 							read_offset = tmp_p + pMdlPosV->z;
-							ProcessAnimValue(read_offset, write_offset, mdlAnimRle, pRseqPosV, num_frames, idx_offset, studioPosScale[mdlAnimRle->bone].Min(), studioPosScale[mdlAnimRle->bone].z);
+							ProcessAnimValue(read_offset, write_offset, mdlAnimRle, pRseqPosV, num_frames, idx_offset, studioPosScale[mdlAnimRle->bone].Max(), studioPosScale[mdlAnimRle->bone].z);
 						}
 						else {
 							idx_offset.push_back(0);
