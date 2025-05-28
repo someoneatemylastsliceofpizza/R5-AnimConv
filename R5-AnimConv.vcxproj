@@ -23,7 +23,6 @@
     <ClCompile Include="src\mdl\mdl.cpp" />
     <ClCompile Include="src\mdl\rrig.cpp" />
     <ClCompile Include="src\mdl\rseq.cpp" />
-    <ClCompile Include="src\utils\fileio.cpp" />
     <ClCompile Include="src\utils\stringtable.cpp" />
   </ItemGroup>
   <ItemGroup>

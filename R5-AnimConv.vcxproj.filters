@@ -30,9 +30,6 @@
     <ClCompile Include="src\mdl\mdl.cpp">
       <Filter>Source Files\assets</Filter>
     </ClCompile>
-    <ClCompile Include="src\utils\fileio.cpp">
-      <Filter>Source Files\utils</Filter>
-    </ClCompile>
     <ClCompile Include="src\utils\stringtable.cpp">
       <Filter>Source Files\utils</Filter>
     </ClCompile>

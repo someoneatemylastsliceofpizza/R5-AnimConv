@@ -1,7 +1,6 @@
 
 #include <iostream>  
 #include <fstream>
-#include <utils/fileio.cpp>
 #include <mdl/rrig.h>
 #include <mdl/rseq.h>
 
@@ -12,11 +11,9 @@ int main(int argc, char* argv[]) {
 	}  
 
 	std::string input_mdl = argv[1];
+	std::ifstream mdl_stream(input_mdl, std::ios::binary);
 
-	if (input_mdl.substr(input_mdl.find_last_of('.')) != ".mdl") {
-		std::cerr << "Error: Input file must have a .mdl extension." << std::endl;
-		return 1;
-	}
+
 	std::filesystem::path file_path(input_mdl);
 	std::string filename = file_path.filename().string().substr(0, file_path.filename().string().find_last_of("."));
 	std::string output_dir = file_path.parent_path().string();;
@@ -26,22 +23,22 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 
-	StreamIO mdl_stream;
-	mdl_stream.open(input_mdl, eStreamIOMode::Read);
-
 	printf("Reading: %s...\n", input_mdl.c_str());
 
-	if (mdl_stream.read<int>() != 'TSDI') {
+	int magic = 0;
+	mdl_stream.read(reinterpret_cast<char*>(&magic), sizeof(int));
+	if (magic != 'TSDI') {
 		std::cerr << "Error: Input file is not a MDL file." << std::endl;
 		return 1;
 	}
 
-	int mdl_version = mdl_stream.read<int>();
+	int mdl_version = 0;
+	mdl_stream.read(reinterpret_cast<char*>(&mdl_version), sizeof(int));
 	printf("MDL version %d\n", mdl_version);
 
 	std::vector<std::string> sequence_names;
 	std::string rig_name = "CANNOT LOAD RRIG NAME";
-	                              //in   out   seq            
+	                             //entry exit  seq            
 	std::vector<std::pair<std::pair<int, int>, int>> nodedata;
 
 	if (mdl_version == 49) {
@@ -50,14 +47,14 @@ int main(int argc, char* argv[]) {
 		uintmax_t mdlFileSize = std::filesystem::file_size(input_mdl);
 
 		//RSEQ
-		mdl_stream.seek(0, std::ios::beg);
+		mdl_stream.seekg(0, std::ios::beg);
 		char* buffer = new char[mdlFileSize];
-		mdl_stream.R()->read(buffer, mdlFileSize);
+		mdl_stream.read(buffer, mdlFileSize);
 		sequence_names = ConvertMDL_RSEQ(buffer, output_dir, filename, nodedata);
 		//RRIG
-		mdl_stream.seek(0, std::ios::beg);
+		mdl_stream.seekg(0, std::ios::beg);
 		buffer = new char[mdlFileSize];
-		mdl_stream.R()->read(buffer, mdlFileSize);
+		mdl_stream.read(buffer, mdlFileSize);
 		rig_name = ConvertMDL_RRIG(buffer, output_dir, filename, nodedata);
 		delete[] buffer;
 
@@ -67,7 +64,7 @@ int main(int argc, char* argv[]) {
 			printf("        \"%s\"%s\n", sequence_names.at(i).c_str(), (i == sequence_names.size() - 1) ? "\n      ]\n    }\n" : ", ");
 	}
 	else 
-		printf("Failed: This MDL version %d does not support yet.\n", mdl_version);
+		printf("Failed: This MDL version %d does not support yet, Only v49 is supported.\n", mdl_version);
 	
 	mdl_stream.close();
 

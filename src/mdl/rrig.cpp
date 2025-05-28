@@ -1,10 +1,8 @@
 #include <mdl/rrig.h>
 #include <mdl/studio.h>
 #include <utils/stringtable.cpp>
-#include <filesystem>
 
-void WritePreHeader(r5::v8::studiohdr_t* pV54RrigHdr, studiohdr_t* v49MdlHdr);
-void SetFlagForDescendants(r5::v8::mstudiobone_t* bones, int numbones, int parentIdx, int flag);
+void SetFlagForDescendants(r5r::mstudiobone_t* bones, int numbones, int parentIdx, int flag);
 
 std::string ConvertMDL_RRIG(char* mdl_buffer, std::string output_dir, std::string filename, std::vector<std::pair<std::pair<int, int>, int>>&nodedata) {
 	printf("\nConverting rrig...\n");
@@ -12,13 +10,27 @@ std::string ConvertMDL_RRIG(char* mdl_buffer, std::string output_dir, std::strin
 	g_model.pData = g_model.pBase;
 
 	// Header
-	studiohdr_t* pV49MdlHdr = reinterpret_cast<studiohdr_t*>(mdl_buffer);
-	r5::v8::studiohdr_t* pV54RrigHdr = reinterpret_cast<r5::v8::studiohdr_t*>(g_model.pData);
+	pt2::studiohdr_t* pV49MdlHdr = reinterpret_cast<pt2::studiohdr_t*>(mdl_buffer);
+	r5r::studiohdr_t* pV54RrigHdr = reinterpret_cast<r5r::studiohdr_t*>(g_model.pData);
 
-	WritePreHeader(pV54RrigHdr, pV49MdlHdr);
+	pV54RrigHdr->id = 'TSDI';
+	pV54RrigHdr->version = 54;
+	pV54RrigHdr->checksum = 0xFFFFFFFF;
+	memcpy_s(pV54RrigHdr->name, 64, pV49MdlHdr->name, 64);
+	pV54RrigHdr->eyeposition = pV49MdlHdr->eyeposition;
+	pV54RrigHdr->illumposition = pV49MdlHdr->illumposition;
+	pV54RrigHdr->numbones = pV49MdlHdr->numbones;
+	pV54RrigHdr->numlocalnodes = pV49MdlHdr->numlocalnodes;
+	pV54RrigHdr->mass = 1.0f;
+	pV54RrigHdr->contents = pV49MdlHdr->contents;
+	pV54RrigHdr->constdirectionallightdot = pV49MdlHdr->constdirectionallightdot;
+	pV54RrigHdr->rootLOD = pV49MdlHdr->rootLOD;
+	pV54RrigHdr->numAllowedRootLODs = pV49MdlHdr->numAllowedRootLODs;
+	pV54RrigHdr->defaultFadeDist = -1;
+	pV54RrigHdr->flVertAnimFixedPointScale = pV49MdlHdr->flVertAnimFixedPointScale;
 
 	g_model.pHdr = pV54RrigHdr;
-	g_model.pData += sizeof(r5::v8::studiohdr_t);
+	g_model.pData += sizeof(r5r::studiohdr_t);
 	BeginStringTable();
 
 	std::string model_name = pV49MdlHdr->name;
@@ -36,8 +48,8 @@ std::string ConvertMDL_RRIG(char* mdl_buffer, std::string output_dir, std::strin
 
 	// Bones
 	pV54RrigHdr->boneindex = g_model.pData - g_model.pBase;
-	r5::v8::mstudiobone_t* v54bone = reinterpret_cast<r5::v8::mstudiobone_t*>(g_model.pData);
-	mstudiobone_t* v49bone = reinterpret_cast<mstudiobone_t*>(mdl_buffer + pV49MdlHdr->boneindex);
+	r5r::mstudiobone_t* v54bone = reinterpret_cast<r5r::mstudiobone_t*>(g_model.pData);
+	pt2::mstudiobone_t* v49bone = reinterpret_cast<pt2::mstudiobone_t*>(mdl_buffer + pV49MdlHdr->boneindex);
 	for (int i = 0; i < pV54RrigHdr->numbones; i++) {
 		const char* bone_name = STRING_FROM_IDX(&v49bone[i], v49bone[i].sznameindex);
 		AddToStringTable((char*)&v54bone[i], &v54bone[i].sznameindex, bone_name);
@@ -54,7 +66,7 @@ std::string ConvertMDL_RRIG(char* mdl_buffer, std::string output_dir, std::strin
 		v54bone[i].scale = Vector3{ 1,1,1 };
 		v54bone[i].poseToBone = v49bone[i].poseToBone;
 		v54bone[i].qAlignment = v49bone[i].qAlignment;
-		v54bone[i].flags = v49bone[i].flags & 0x200; //
+		v54bone[i].flags = v49bone[i].flags & 0x200;
 		v54bone[i].proctype = 0;
 		v54bone[i].procindex = 0;
 		v54bone[i].physicsbone = 0;
@@ -63,17 +75,17 @@ std::string ConvertMDL_RRIG(char* mdl_buffer, std::string output_dir, std::strin
 		v54bone[i].surfacepropLookup = v49bone[i].surfacepropLookup;
 	}
 	g_model.pHdr = v54bone;
-	g_model.pData += pV54RrigHdr->numbones * sizeof(r5::v8::mstudiobone_t);
+	g_model.pData += pV54RrigHdr->numbones * sizeof(r5r::mstudiobone_t);
 
 	//TODO:
 	//hboxset
 	pV54RrigHdr->numhitboxsets = 1;
 	pV54RrigHdr->hitboxsetindex = g_model.pData - g_model.pBase;
-	r5::v8::mstudiohitboxset_t* v54hboxset = reinterpret_cast<r5::v8::mstudiohitboxset_t*>(g_model.pData);
+	r5r::mstudiohitboxset_t* v54hboxset = reinterpret_cast<r5r::mstudiohitboxset_t*>(g_model.pData);
 	AddToStringTable((char*)v54hboxset, &v54hboxset->sznameindex, "default");
 	v54hboxset->numhitboxes = 0;
 	v54hboxset->hitboxindex = 12;
-	g_model.pData += sizeof(r5::v8::mstudiohitboxset_t);
+	g_model.pData += sizeof(r5r::mstudiohitboxset_t);
 
 	//bone by name
 	pV54RrigHdr->bonetablebynameindex = g_model.pData - g_model.pBase;
@@ -134,33 +146,33 @@ std::string ConvertMDL_RRIG(char* mdl_buffer, std::string output_dir, std::strin
 	//pose param
 	pV54RrigHdr->localposeparamindex = g_model.pData - g_model.pBase;
 	pV54RrigHdr->numlocalposeparameters = pV49MdlHdr->numlocalposeparameters;
-	mstudioposeparamdesc_t* v49poseparam = PTR_FROM_IDX(mstudioposeparamdesc_t, mdl_buffer, pV49MdlHdr->localposeparamindex);
-	r5::v8::mstudioposeparamdesc_t* v54poseparam = reinterpret_cast<r5::v8::mstudioposeparamdesc_t*>(g_model.pData);
+	pt2::mstudioposeparamdesc_t* v49poseparam = PTR_FROM_IDX(pt2::mstudioposeparamdesc_t, mdl_buffer, pV49MdlHdr->localposeparamindex);
+	r5r::mstudioposeparamdesc_t* v54poseparam = reinterpret_cast<r5r::mstudioposeparamdesc_t*>(g_model.pData);
 	for (int i = 0; i < pV54RrigHdr->numlocalposeparameters; i++) {
 		AddToStringTable((char*)&v54poseparam[i], &v54poseparam[i].sznameindex, STRING_FROM_IDX(&v49poseparam[i], v49poseparam[i].sznameindex));
 		v54poseparam[i].start = v49poseparam[i].start;
 		v54poseparam[i].end = v49poseparam[i].end;
 	}
-	g_model.pData += sizeof(r5::v8::mstudioposeparamdesc_t) * pV54RrigHdr->numlocalposeparameters;
+	g_model.pData += sizeof(r5r::mstudioposeparamdesc_t) * pV54RrigHdr->numlocalposeparameters;
 
 	//ik chains
 	pV54RrigHdr->numikchains = pV49MdlHdr->numikchains;
 	pV54RrigHdr->ikchainindex = g_model.pData - g_model.pBase;
-	mstudioikchain_t* v49ikchain = PTR_FROM_IDX(mstudioikchain_t, mdl_buffer, pV49MdlHdr->ikchainindex);
-	r5::v8::mstudioikchain_t* v54ikchain = reinterpret_cast<r5::v8::mstudioikchain_t*>(g_model.pData);
+	pt2::mstudioikchain_t* v49ikchain = PTR_FROM_IDX(pt2::mstudioikchain_t, mdl_buffer, pV49MdlHdr->ikchainindex);
+	r5r::mstudioikchain_t* v54ikchain = reinterpret_cast<r5r::mstudioikchain_t*>(g_model.pData);
 	for (int i = 0; i < pV49MdlHdr->numikchains; i++) {
 		AddToStringTable((char*)&v54ikchain[i], &v54ikchain[i].sznameindex, STRING_FROM_IDX(&v49ikchain[i], v49ikchain[i].sznameindex));
 		v54ikchain[i].linktype = v49ikchain[i].linktype;
 		v54ikchain[i].numlinks = v49ikchain[i].numlinks;
 		v54ikchain[i].unk = 0.707f;
 	}
-	g_model.pData += sizeof(r5::v8::mstudioikchain_t) * pV54RrigHdr->numikchains;
+	g_model.pData += sizeof(r5r::mstudioikchain_t) * pV54RrigHdr->numikchains;
 
 	//ik links
 	for (int i = 0; i < pV49MdlHdr->numikchains; i++) {
 		v54ikchain[i].linkindex = g_model.pData - PTR_FROM_IDX(char, &v54ikchain[i], 0);
-		mstudioiklink_t* v49iklink = PTR_FROM_IDX(mstudioiklink_t, &v49ikchain[i], v49ikchain[i].linkindex);
-		r5::v8::mstudioiklink_t* v54iklink = reinterpret_cast<r5::v8::mstudioiklink_t*>(g_model.pData);
+		pt2::mstudioiklink_t* v49iklink = PTR_FROM_IDX(pt2::mstudioiklink_t, &v49ikchain[i], v49ikchain[i].linkindex);
+		r5r::mstudioiklink_t* v54iklink = reinterpret_cast<r5r::mstudioiklink_t*>(g_model.pData);
 		v54iklink[0].bone = v49iklink[0].bone;
 		v54iklink[1].bone = v49iklink[1].bone;
 		v54iklink[2].bone = v49iklink[2].bone;
@@ -169,7 +181,7 @@ std::string ConvertMDL_RRIG(char* mdl_buffer, std::string output_dir, std::strin
 		v54bone[v54iklink[1].bone].flags |= 0x20;
 		v54bone[v54iklink[2].bone].flags |= 0x20;
 		SetFlagForDescendants(v54bone, pV54RrigHdr->numbones, v54iklink[0].bone, 0x20);
-		g_model.pData += sizeof(r5::v8::mstudioiklink_t) * v54ikchain->numlinks;
+		g_model.pData += sizeof(r5r::mstudioiklink_t) * v54ikchain->numlinks;
 	}
 
 	//write all data
@@ -188,53 +200,7 @@ std::string ConvertMDL_RRIG(char* mdl_buffer, std::string output_dir, std::strin
 	return ret_name;
 }
 
-
-void WritePreHeader(r5::v8::studiohdr_t* pV54RrigHdr, studiohdr_t* v49MdlHdr) {
-	pV54RrigHdr->id = 'TSDI';
-	pV54RrigHdr->version = 54;
-	pV54RrigHdr->checksum = v49MdlHdr->checksum;
-	pV54RrigHdr->checksum = 0x0;
-	memcpy_s(pV54RrigHdr->name, 64, v49MdlHdr->name, 64);
-	pV54RrigHdr->length = 0xDEADC0DE;
-	pV54RrigHdr->eyeposition = v49MdlHdr->eyeposition;
-	pV54RrigHdr->illumposition = v49MdlHdr->illumposition;
-	pV54RrigHdr->flags = 0;
-	pV54RrigHdr->numbones = v49MdlHdr->numbones;
-	pV54RrigHdr->boneindex = 0xDEADC0DE;
-	pV54RrigHdr->numhitboxsets = 0xDEADC0DE;
-	pV54RrigHdr->hitboxsetindex = 0xDEADC0DE;
-	pV54RrigHdr->numlocalanim = 0;
-	pV54RrigHdr->numlocalseq = 0;
-	pV54RrigHdr->activitylistversion = 0;
-	pV54RrigHdr->numtextures = 0;
-	pV54RrigHdr->numcdtextures = 0;
-	pV54RrigHdr->numskinref = 0;
-	pV54RrigHdr->numskinfamilies = 0;
-	pV54RrigHdr->numbodyparts = 0;
-	pV54RrigHdr->numlocalattachments = 0;
-	pV54RrigHdr->numlocalnodes = v49MdlHdr->numlocalnodes;
-	pV54RrigHdr->localnodeindex = 0;
-	pV54RrigHdr->localnodenameindex = 0xDEADC0DE;
-	pV54RrigHdr->numikchains = 0xDEADC0DE;
-	pV54RrigHdr->ikchainindex = 0xDEADC0DE;
-	pV54RrigHdr->nodeDataOffsetsOffset = 0xDEADC0DE;
-	pV54RrigHdr->numlocalposeparameters = 0xDEADC0DE;
-	pV54RrigHdr->localposeparamindex = 0xDEADC0DE;
-	pV54RrigHdr->keyvaluesize = 0;
-	pV54RrigHdr->numsrcbonetransform = 0;
-	pV54RrigHdr->mass = 1.0f;
-	pV54RrigHdr->contents = v49MdlHdr->contents;
-	pV54RrigHdr->numincludemodels = 0;
-	pV54RrigHdr->bonetablebynameindex = 0xDEADC0DE;
-	pV54RrigHdr->constdirectionallightdot = v49MdlHdr->constdirectionallightdot;
-	pV54RrigHdr->rootLOD = v49MdlHdr->rootLOD;
-	pV54RrigHdr->numAllowedRootLODs = v49MdlHdr->numAllowedRootLODs;
-	pV54RrigHdr->defaultFadeDist = -1;
-	pV54RrigHdr->flVertAnimFixedPointScale = v49MdlHdr->flVertAnimFixedPointScale;
-}
-
-
-void SetFlagForDescendants(r5::v8::mstudiobone_t* bones, int numbones, int parentIdx, int flag) {
+void SetFlagForDescendants(r5r::mstudiobone_t* bones, int numbones, int parentIdx, int flag) {
 	for (int i = 0; i < numbones; ++i) {
 		if (bones[i].parent == parentIdx) {
 			bones[i].flags |= flag;
