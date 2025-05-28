@@ -76,6 +76,16 @@ namespace pt2 {
 		int linkindex;
 	};
 
+	struct mstudioautolayer_t
+	{
+		short iSequence;
+		short iPose;
+		int flags;
+		float start;
+		float peak;
+		float tail;
+		float end;
+	};
 
 	struct mstudiobone_t
 	{
