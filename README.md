@@ -9,4 +9,9 @@
 ### Usage
 
 ```bash
-R5-AnimConv.exe <path-to-your-model.mdl>
+R5-AnimConv.exe <path-to-your-model.mdl> [-nv] [-np]
+```
+
+>**Options**
+>* `-nv` : Disable verbose
+>* `-np` : Do not print RePak entry

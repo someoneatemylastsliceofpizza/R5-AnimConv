@@ -8,12 +8,9 @@
 #define ALIGN2( a ) a = (byte *)((__int64)((byte *)a + 1) & ~ 1)
 #define ALIGN4( a ) a = (byte *)((__int64)((byte *)a + 3) & ~ 3)
 #define ALIGN16( a ) a = (byte *)((__int64)((byte *)a + 15) & ~ 15)
-#define ALIGN32( a ) a = (byte *)((__int64)((byte *)a + 31) & ~ 31)
-#define ALIGN64( a ) a = (byte *)((__int64)((byte *)a + 63) & ~ 63)
-#define ALIGN512( a ) a = (byte *)((__int64)((byte *)a + 511) & ~ 511)
 
-#define max(a,b) ((a > b) ? a : b)
-#define min(a,b) ((a < b) ? a : b)
+#define MAX(a,b) ((a > b) ? a : b)
+#define MIN(a,b) ((a < b) ? a : b)
 
 typedef char byte;
 
@@ -81,11 +78,6 @@ struct Vector3{
 		return ((float*)this)[i];
 	}
 
-	inline float Dot(const Vector3& a, const Vector3& b)
-	{
-		return a.x * b.x + a.y * b.y + a.z * b.z;
-	}
-
 	inline void Print()
 	{
 		printf("<x: %f, y: %f, z: %f>\n", x, y, z);
@@ -102,11 +94,11 @@ struct Vector3{
 	}
 
     inline float Min() {
-		return min(x, min(y, z));
+		return MIN(x, MIN(y, z));
     }
 
 	inline float Max() {
-		return max(x, max(y, z));
+		return MAX(x, MAX(y, z));
 	}
 
 	inline float Get(int xyz) {

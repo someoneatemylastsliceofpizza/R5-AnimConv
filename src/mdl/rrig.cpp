@@ -1,11 +1,12 @@
 #include <mdl/rrig.h>
 #include <mdl/studio.h>
 #include <utils/stringtable.cpp>
+#include <utils/print.h>
 
 void SetFlagForDescendants(r5r::mstudiobone_t* bones, int numbones, int parentIdx, int flag);
 
 std::string ConvertMDL_RRIG(char* mdl_buffer, std::string output_dir, std::string filename, std::vector<std::pair<std::pair<int, int>, int>>&nodedata) {
-	printf("\nConverting rrig...\n");
+	print("\nConverting rrig...\n");
 	g_model.pBase = new char[32 * 1024 * 1024] {};
 	g_model.pData = g_model.pBase;
 
@@ -34,7 +35,9 @@ std::string ConvertMDL_RRIG(char* mdl_buffer, std::string output_dir, std::strin
 	BeginStringTable();
 
 	std::string model_name = pV49MdlHdr->name;
-	model_name = "animrig/" + model_name.substr(model_name.find('/') + 1, model_name.rfind('.') - model_name.find('/') - 1) + ".rrig";
+	std::string temp_model_dir = model_name;
+	std::replace(temp_model_dir.begin(), temp_model_dir.end(), '/', '\\');
+	model_name = "animrig/" + temp_model_dir.substr(temp_model_dir.find('\\') + 1, temp_model_dir.rfind('.') - temp_model_dir.find('\\') - 1) + ".rrig";
     
 	std::string model_dir = model_name.substr(0, model_name.find_last_of("\\") + 1);
     std::replace(model_dir.begin(), model_dir.end(), '/', '\\');
@@ -42,7 +45,7 @@ std::string ConvertMDL_RRIG(char* mdl_buffer, std::string output_dir, std::strin
     std::filesystem::create_directories(output_dir + "\\" + model_dir);
 	std::ofstream outRrig(output_dir + "\\" + model_dir + "\\" + filename + ".rrig", std::ios::out | std::ios::binary);
 
-	memcpy_s(&pV54RrigHdr->name, 64, model_name.c_str(), min(model_name.length(), 64));
+	memcpy_s(&pV54RrigHdr->name, 64, model_name.c_str(), MIN(model_name.length(), 64));
 	AddToStringTable((char*)pV54RrigHdr, &pV54RrigHdr->sznameindex, model_name.c_str());
 	AddToStringTable((char*)pV54RrigHdr, &pV54RrigHdr->surfacepropindex, STRING_FROM_IDX(pV49MdlHdr, pV49MdlHdr->surfacepropindex));
 
@@ -189,13 +192,13 @@ std::string ConvertMDL_RRIG(char* mdl_buffer, std::string output_dir, std::strin
 	ALIGN4(g_model.pData);
 	std::string ret_name = model_dir + filename + ".rrig";
 	std::replace(ret_name.begin(), ret_name.end(), '\\', '/');
-	printf("    ->%s  ...", ret_name.c_str());
+	print("    ->%s  ...", ret_name.c_str());
 
 	pV54RrigHdr->length = g_model.pData - g_model.pBase;
 	outRrig.write(g_model.pBase, g_model.pData - g_model.pBase);
 	g_model.stringTable.clear();
 	delete[] g_model.pBase;
-	printf("Done!\n\n");
+	print("Done!\n\n");
 
 	return ret_name;
 }

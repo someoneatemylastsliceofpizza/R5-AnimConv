@@ -22,6 +22,9 @@
     <Filter Include="Source Files\utils">
       <UniqueIdentifier>{6445f95b-73fd-4a0c-aa1a-fc9e72f55d85}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\utils">
+      <UniqueIdentifier>{2e77228e-26ac-46a1-8ff2-ad474ff46356}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="R5-AnimConv.cpp">
@@ -39,6 +42,9 @@
     <ClCompile Include="src\mdl\rseq.cpp">
       <Filter>Source Files\assets</Filter>
     </ClCompile>
+    <ClCompile Include="src\utils\print.cpp">
+      <Filter>Source Files\utils</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\mdl\studio.h">
@@ -52,6 +58,9 @@
     </ClInclude>
     <ClInclude Include="src\mdl\rseq.h">
       <Filter>Header Files\mdl</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utils\print.h">
+      <Filter>Header Files\utils</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
