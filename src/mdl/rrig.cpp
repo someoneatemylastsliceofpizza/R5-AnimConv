@@ -5,7 +5,7 @@
 
 void SetFlagForDescendants(r5r::mstudiobone_t* bones, int numbones, int parentIdx, int flag);
 
-std::string ConvertMDL_RRIG(char* mdl_buffer, std::string output_dir, std::string filename, std::vector<std::pair<std::pair<int, int>, int>>&nodedata) {
+std::string ConvertMDL_49_RRIG(char* mdl_buffer, std::string output_dir, std::string filename, std::vector<std::pair<std::pair<int, int>, int>>&nodedata) {
 	print("\nConverting rrig...\n");
 	g_model.pBase = new char[32 * 1024 * 1024] {};
 	g_model.pData = g_model.pBase;

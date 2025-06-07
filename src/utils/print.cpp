@@ -2,7 +2,7 @@
 #include <stdio.h>
 
 bool is_no_verbose = false;
-bool is_no_print = false;
+bool is_no_entry = false;
 
 void print(const char* format, ...) {
     if (!is_no_verbose) {

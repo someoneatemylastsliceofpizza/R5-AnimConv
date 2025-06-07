@@ -9,7 +9,7 @@ int main(int argc, char* argv[]) {
 	std::string input_mdl;
 
 	if (argc < 2) {
-		std::cerr << "Usage: " << argv[0] << " <input.mdl> [-nv] [-np]" << std::endl;
+		std::cerr << "Usage: " << argv[0] << " <input.mdl> [-nv] [-ne]" << std::endl;
 		return 1;
 	}
 
@@ -18,9 +18,9 @@ int main(int argc, char* argv[]) {
 	for (int i = 2; i < argc; ++i) {
 		std::string arg = argv[i];
 		if (arg == "-nv") is_no_verbose = true;
-		else if (arg == "-np") is_no_print = true;
+		else if (arg == "-ne") is_no_entry = true;
 		else {
-			std::cerr << "Unknown option: " << arg << "\nUsage: " << argv[0] << " <input.mdl> [-nv] [-np]" << std::endl;
+			std::cerr << "Unknown option: " << arg << "\nUsage: " << argv[0] << " <input.mdl> [-nv] [-ne]" << std::endl;
 			return 1;
 		}
 	}
@@ -52,36 +52,34 @@ int main(int argc, char* argv[]) {
 	std::string rig_name = "CANNOT LOAD RRIG NAME";
 	std::vector<std::pair<std::pair<int, int>, int>> nodedata;
 
+	uintmax_t mdlFileSize = std::filesystem::file_size(input_mdl);
+	char* buffer = new char[mdlFileSize];
+
 	if (mdl_version == 49) {
 		print("Starting...\n\n");
-
-		uintmax_t mdlFileSize = std::filesystem::file_size(input_mdl);
-
+		
 		//RSEQ
 		mdl_stream.seekg(0, std::ios::beg);
-		char* buffer = new char[mdlFileSize];
 		mdl_stream.read(buffer, mdlFileSize);
-		sequence_names = ConvertMDL_RSEQ(buffer, output_dir, filename, nodedata);
+		sequence_names = ConvertMDL_49_RSEQ(buffer, output_dir, filename, nodedata);
 		//RRIG
 		mdl_stream.seekg(0, std::ios::beg);
-		buffer = new char[mdlFileSize];
 		mdl_stream.read(buffer, mdlFileSize);
-		rig_name = ConvertMDL_RRIG(buffer, output_dir, filename, nodedata);
-		delete[] buffer;
-
-		if (!is_no_print) {
-			printf("{\n     \"_type\": \"arig\",\n     \"_path\" : \"%s\",\n     \"$sequences\" : [\n", rig_name.c_str());
-			for (int i = 0; i < sequence_names.size(); i++)
-				printf("        \"%s\"%s\n", sequence_names.at(i).c_str(), (i == sequence_names.size() - 1) ? "\n      ]\n    }\n" : ", ");
-
-			system("pause");
-		}
+		rig_name = ConvertMDL_49_RRIG(buffer, output_dir, filename, nodedata);
 	}
 	else 
 		printf("Failed: This MDL version %d does not support yet, Only v49 is supported.\n", mdl_version);
 	
+	if (!is_no_entry) {
+		printf("{\n     \"_type\": \"arig\",\n     \"_path\" : \"%s\",\n     \"$sequences\" : [\n", rig_name.c_str());
+		for (int i = 0; i < sequence_names.size(); i++)
+			printf("        \"%s\"%s\n", sequence_names.at(i).c_str(), (i == sequence_names.size() - 1) ? "\n      ]\n    }\n" : ", ");
+		system("pause");
+	}
+
 	print("All Done!\n");
-	
+
+	delete[] buffer;
 	mdl_stream.close();
 	return 0;  
 	}

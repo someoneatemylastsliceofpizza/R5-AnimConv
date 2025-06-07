@@ -5,7 +5,7 @@
 
 void ProcessAnimValue(int& read_offset, int& write_offset, pt2::mstudio_rle_anim_t* mdlAnimRle, r5r::studioanimvalue_ptr_t* pRseqValue, int numframe, std::vector<int>& idx_offset, float newScale, float oldScale, float shift = 0.0f, bool isZero = false);
 
-std::vector<std::string> ConvertMDL_RSEQ(char* mdl_buffer, std::string output_dir, std::string filename, std::vector<std::pair<std::pair<int, int>, int>> &nodedata) {
+std::vector<std::string> ConvertMDL_49_RSEQ(char* mdl_buffer, std::string output_dir, std::string filename, std::vector<std::pair<std::pair<int, int>, int>> &nodedata) {
 	pt2::studiohdr_t* pV49MdlHdr = reinterpret_cast<pt2::studiohdr_t*>(mdl_buffer);
 	pt2::mstudioseqdesc_t* pStudioSeqDesc = reinterpret_cast<pt2::mstudioseqdesc_t*>((mdl_buffer + pV49MdlHdr->localseqindex));
 	pt2::mstudioanimdesc_t* pStudioAnimDesc = reinterpret_cast<pt2::mstudioanimdesc_t*>((mdl_buffer + pV49MdlHdr->localanimindex));
