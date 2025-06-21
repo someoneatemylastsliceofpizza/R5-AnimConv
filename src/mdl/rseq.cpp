@@ -110,24 +110,24 @@ std::vector<std::string> ConvertMDL_49_RSEQ(char* mdl_buffer, std::string output
 		g_model.pData += sizeof(r5r::mstudioevent_t) * pV7RseqDesc->numevents;
 
 		//autolayer
-		//if (pStudioSeqDesc[seq_idx].numautolayers) {
-		//	pV7RseqDesc->numautolayers = pStudioSeqDesc[seq_idx].numautolayers;
-		//	pV7RseqDesc->autolayerindex = g_model.pData - g_model.pBase;
-		//	pt2::mstudioautolayer_t* v49AutoLayer = reinterpret_cast<pt2::mstudioautolayer_t*>(mdl_buffer - base_ptr + pStudioSeqDesc[seq_idx].autolayerindex);
-		//	r5r::mstudioautolayer_t* v54AutoLayer = reinterpret_cast<r5r::mstudioautolayer_t*>(g_model.pData);
-		//	for (int i = 0; i < pV7RseqDesc->numautolayers; i++) {
-		//		std::string n = std::string(STRING_FROM_IDX(reinterpret_cast<char*>(mdl_buffer), -pStudioSeqDesc[v49AutoLayer[i].iSequence].baseptr + pStudioSeqDesc[v49AutoLayer[i].iSequence].sznameindex)) + ".rseq";
-		//		v54AutoLayer[i].assetSequence = StringToGuid(n.c_str());
-		//		v54AutoLayer[i].iSequence = v49AutoLayer[i].iSequence + sequence_names.size() - seq_idx - 1;
-		//		v54AutoLayer[i].iPose = v49AutoLayer[i].iPose;
-		//		v54AutoLayer[i].flags = v49AutoLayer[i].flags;
-		//		v54AutoLayer[i].start = v49AutoLayer[i].start;
-		//		v54AutoLayer[i].peak = v49AutoLayer[i].peak;
-		//		v54AutoLayer[i].tail = v49AutoLayer[i].tail;
-		//		v54AutoLayer[i].end = v49AutoLayer[i].end;
-		//	}
-		//	g_model.pData += sizeof(r5r::mstudioautolayer_t) * pV7RseqDesc->numautolayers;
-		//}
+		if (pStudioSeqDesc[seq_idx].numautolayers) {
+			pV7RseqDesc->numautolayers = pStudioSeqDesc[seq_idx].numautolayers;
+			pV7RseqDesc->autolayerindex = g_model.pData - g_model.pBase;
+			pt2::mstudioautolayer_t* v49AutoLayer = reinterpret_cast<pt2::mstudioautolayer_t*>(mdl_buffer - base_ptr + pStudioSeqDesc[seq_idx].autolayerindex);
+			r5r::mstudioautolayer_t* v54AutoLayer = reinterpret_cast<r5r::mstudioautolayer_t*>(g_model.pData);
+			for (int i = 0; i < pV7RseqDesc->numautolayers; i++) {
+				std::string n = std::string(STRING_FROM_IDX(reinterpret_cast<char*>(mdl_buffer), -pStudioSeqDesc[v49AutoLayer[i].iSequence].baseptr + pStudioSeqDesc[v49AutoLayer[i].iSequence].sznameindex)) + ".rseq";
+				v54AutoLayer[i].assetSequence = StringToGuid(n.c_str());
+				v54AutoLayer[i].iSequence = v49AutoLayer[i].iSequence + sequence_names.size() - seq_idx - 1; //if you have more than one rrig please recheck it
+				v54AutoLayer[i].iPose = v49AutoLayer[i].iPose;
+				v54AutoLayer[i].flags = v49AutoLayer[i].flags;
+				v54AutoLayer[i].start = v49AutoLayer[i].start;
+				v54AutoLayer[i].peak = v49AutoLayer[i].peak;
+				v54AutoLayer[i].tail = v49AutoLayer[i].tail;
+				v54AutoLayer[i].end = v49AutoLayer[i].end;
+			}
+			g_model.pData += sizeof(r5r::mstudioautolayer_t) * pV7RseqDesc->numautolayers;
+		}
 
 		//weight list
 		pV7RseqDesc->weightlistindex = g_model.pData - g_model.pBase;
