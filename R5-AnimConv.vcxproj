@@ -20,17 +20,16 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="R5-AnimConv.cpp" />
-    <ClCompile Include="src\mdl\mdl.cpp" />
-    <ClCompile Include="src\mdl\rrig.cpp" />
-    <ClCompile Include="src\mdl\rseq.cpp" />
+    <ClCompile Include="src\rrig\rrig.cpp" />
+    <ClCompile Include="src\rseq\rseq.cpp" />
     <ClCompile Include="src\utils\print.cpp" />
     <ClCompile Include="src\utils\stringtable.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\define.h" />
-    <ClInclude Include="src\mdl\rrig.h" />
-    <ClInclude Include="src\mdl\rseq.h" />
     <ClInclude Include="src\mdl\studio.h" />
+    <ClInclude Include="src\rrig\rrig.h" />
+    <ClInclude Include="src\rseq\rseq.h" />
     <ClInclude Include="src\utils\print.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

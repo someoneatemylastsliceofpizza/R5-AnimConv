@@ -30,37 +30,34 @@
     <ClCompile Include="R5-AnimConv.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\mdl\mdl.cpp">
-      <Filter>Source Files\assets</Filter>
-    </ClCompile>
     <ClCompile Include="src\utils\stringtable.cpp">
       <Filter>Source Files\utils</Filter>
     </ClCompile>
-    <ClCompile Include="src\mdl\rrig.cpp">
-      <Filter>Source Files\assets</Filter>
-    </ClCompile>
-    <ClCompile Include="src\mdl\rseq.cpp">
-      <Filter>Source Files\assets</Filter>
-    </ClCompile>
     <ClCompile Include="src\utils\print.cpp">
       <Filter>Source Files\utils</Filter>
+    </ClCompile>
+    <ClCompile Include="src\rseq\rseq.cpp">
+      <Filter>Source Files\assets</Filter>
+    </ClCompile>
+    <ClCompile Include="src\rrig\rrig.cpp">
+      <Filter>Source Files\assets</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\mdl\studio.h">
       <Filter>Header Files\mdl</Filter>
     </ClInclude>
-    <ClInclude Include="src\mdl\rrig.h">
-      <Filter>Header Files\mdl</Filter>
-    </ClInclude>
     <ClInclude Include="src\define.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\mdl\rseq.h">
-      <Filter>Header Files\mdl</Filter>
-    </ClInclude>
     <ClInclude Include="src\utils\print.h">
       <Filter>Header Files\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="src\rrig\rrig.h">
+      <Filter>Header Files\mdl</Filter>
+    </ClInclude>
+    <ClInclude Include="src\rseq\rseq.h">
+      <Filter>Header Files\mdl</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

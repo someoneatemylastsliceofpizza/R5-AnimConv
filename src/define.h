@@ -50,6 +50,11 @@ struct Vector48
    short x;  
    short y;  
    short z; 
+
+   inline bool IsAllZero()
+   {
+	   return (x == 0 && y == 0 && z == 0);
+   }
 };
 
 struct Vector3{

@@ -9,9 +9,11 @@
 ### Usage
 
 ```bash
-R5-AnimConv.exe <path-to-your-model.mdl> [-nv] [-ne]
+R5-AnimConv.exe <path-to-your-model.mdl> [-nv] [-ne] [-rp <override_rrig_path>] [-sp <override_rseq_path>]"
 ```
 
 >**Options**
->* `-nv` : Disable verbose
->* `-ne` : Do not print RePak entry
+>* `-nv` : No verbose output
+>* `-ne` : No entry output
+>* `-rp <override_rrig_path>` : Override internal Rrig path
+>* `-sp <override_rseq_path>` : Override internal Rseq path

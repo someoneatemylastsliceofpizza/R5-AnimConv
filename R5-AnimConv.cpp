@@ -1,15 +1,23 @@
 
 #include <iostream>  
 #include <fstream>
-#include <mdl/rrig.h>
-#include <mdl/rseq.h>
+#include <rrig/rrig.h>
+#include <rseq/rseq.h>
 #include <utils/print.h>
 
-int main(int argc, char* argv[]) {  
+int main(int argc, char* argv[]) {
 	std::string input_mdl;
+	std::string override_rseq_path;
+	std::string override_rrig_path;
 
+	// -nv : No verbose output
+	// -ne : No entry output
+	// -rp <override_rrig_path> : Override internal Rrig path //e.g. -rp "animrig/titans/buddy"
+	// -sp <override_rseq_path> : Override internal Rseq path //e.g. -sp "animseq/titans/buddy_sp" to avoid autolayer guid mismatch
+	
 	if (argc < 2) {
-		std::cerr << "Usage: " << argv[0] << " <input.mdl> [-nv] [-ne]" << std::endl;
+		std::cerr << "Usage: R5-AnimConv.exe <path-to-your-model.mdl> [-nv] [-ne] [-rp <override_rrig_path>] [-sp <override_rseq_path>]" << std::endl;
+		system("pause");
 		return 1;
 	}
 
@@ -19,15 +27,32 @@ int main(int argc, char* argv[]) {
 		std::string arg = argv[i];
 		if (arg == "-nv") is_no_verbose = true;
 		else if (arg == "-ne") is_no_entry = true;
+		else if (arg == "-rp") {
+			if (i + 1 < argc) {
+				override_rrig_path = argv[++i];
+			} else {
+				std::cerr << "Error: -rp option requires a path argument.\n";
+				return 1;
+			}
+		}
+		else if (arg == "-sp") {
+			if (i + 1 < argc) {
+				override_rseq_path = argv[++i];
+			}
+			else {
+				std::cerr << "Error: -sp option requires a path argument.\n";
+				return 1;
+			}
+		}
 		else {
-			std::cerr << "Unknown option: " << arg << "\nUsage: " << argv[0] << " <input.mdl> [-nv] [-ne]" << std::endl;
+			std::cerr << "Unknown option: " << arg << "\nUsage: R5-AnimConv.exe <path-to-your-model.mdl> [-nv] [-ne] [-rp <override_rrig_path>] [-sp <override_rseq_path>]" << std::endl;
 			return 1;
 		}
 	}
 
 	std::ifstream mdl_stream(input_mdl, std::ios::binary);
 
-	std::filesystem::path file_path(input_mdl);
+	std::filesystem::path file_path = std::filesystem::absolute(input_mdl);
 	std::string filename = file_path.filename().string().substr(0, file_path.filename().string().find_last_of("."));
 	std::string output_dir = file_path.parent_path().string();;
 
@@ -55,20 +80,32 @@ int main(int argc, char* argv[]) {
 	uintmax_t mdlFileSize = std::filesystem::file_size(input_mdl);
 	char* buffer = new char[mdlFileSize];
 
-	if (mdl_version == 49) {
-		print("Starting...\n\n");
-		
+	print("Starting...\n\n");
+
+	switch (mdl_version) {
+	case 49:
 		//RSEQ
 		mdl_stream.seekg(0, std::ios::beg);
 		mdl_stream.read(buffer, mdlFileSize);
-		sequence_names = ConvertMDL_49_RSEQ(buffer, output_dir, filename, nodedata);
+		sequence_names = ConvertMDL_49_RSEQ(buffer, output_dir, filename, override_rseq_path, nodedata);
 		//RRIG
 		mdl_stream.seekg(0, std::ios::beg);
 		mdl_stream.read(buffer, mdlFileSize);
-		rig_name = ConvertMDL_49_RRIG(buffer, output_dir, filename, nodedata);
+		rig_name = ConvertMDL_49_RRIG(buffer, output_dir, filename, override_rrig_path, nodedata);
+		break;
+	case 53:
+		//RSEQ
+		mdl_stream.seekg(0, std::ios::beg);
+		mdl_stream.read(buffer, mdlFileSize);
+		sequence_names = ConvertMDL_53_RSEQ(buffer, output_dir, filename, override_rseq_path, nodedata);
+		//RRIG
+		mdl_stream.seekg(0, std::ios::beg);
+		mdl_stream.read(buffer, mdlFileSize);
+		rig_name = ConvertMDL_53_RRIG(buffer, output_dir, filename, override_rrig_path, nodedata);
+		break;
+	default:
+		printf("Failed: This MDL v%d does not support yet, Only v49 and v53 are supported.\n", mdl_version);
 	}
-	else 
-		printf("Failed: This MDL version %d does not support yet, Only v49 is supported.\n", mdl_version);
 	
 	if (!is_no_entry) {
 		printf("{\n     \"_type\": \"arig\",\n     \"_path\" : \"%s\",\n     \"$sequences\" : [\n", rig_name.c_str());
@@ -82,4 +119,4 @@ int main(int argc, char* argv[]) {
 	delete[] buffer;
 	mdl_stream.close();
 	return 0;  
-	}
+}
