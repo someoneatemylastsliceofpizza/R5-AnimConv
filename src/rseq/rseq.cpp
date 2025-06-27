@@ -63,33 +63,46 @@ std::vector<int> getAnimArray(int* read_offset, char* mdlAnimRle, int numframe, 
 }
 
 void ProcessArrayAnimValue(std::vector<int>& anim_array, size_t* write_offset, r5r::studioanimvalue_ptr_t* pRseqValue, int numframes, std::vector<int>& idx_offset, float newScale, float oldScale, float shift, bool isZero) {
-	bool hasSections = anim_array.size() > numframes;
-	int n = numframes / 256 + 1;
+	int totalFrames = numframes;
+	bool isLastSection = false;
+	bool gotIndexOffset = false;
+	size_t frameCounter = 0;
+	int n = totalFrames / 255 + 1; // max 0xFF frames
 	for (int i = 0; i < n; i++) {
-		if (n > 1) numframes = 255;
-		if (anim_array.size() < numframes) numframes = anim_array.size();
+		if (n > 1 && ((i + 1) < n)) {
+				numframes = 255;
+		}
+		if ((i + 1) == n) {
+			numframes = totalFrames - i * 255;
+			isLastSection = true;
+		}
 
 		r5r::mstudioanimvalue_t* rseqanimvalue = PTR_FROM_IDX(r5r::mstudioanimvalue_t, g_model.pData, *write_offset);
-		idx_offset.push_back(rseqanimvalue - (r5r::mstudioanimvalue_t*)pRseqValue);
+		if(!gotIndexOffset){
+			idx_offset.push_back(rseqanimvalue - (r5r::mstudioanimvalue_t*)pRseqValue);
+			gotIndexOffset = true;
+		}
 
 		rseqanimvalue[0].meta.valid = 0x0;
-		rseqanimvalue[0].meta.total = numframes + 1;
+		rseqanimvalue[0].meta.total = numframes + isLastSection;
 		*write_offset += sizeof(short);
 
 		for (int j = 0; j < numframes; j++) {
 			if (!isZero) {
 				rseqanimvalue[j + 1].value = ((double)anim_array.at(j) * oldScale + shift) / newScale;
+			} else {
+				rseqanimvalue[j + 1].value = shift / newScale;
 			}
-			//else {
-			//	rseqanimvalue[j + 1].value = shift / newScale;
-			//}
 			*write_offset += sizeof(short);
 		}
-		rseqanimvalue[numframes + 1].value = ((double)anim_array.at(numframes - 1) * oldScale + shift) / newScale;
-		*write_offset += sizeof(short);
-
-		anim_array.erase(anim_array.begin(), anim_array.begin() + numframes);
+		frameCounter += numframes;
+		if (isLastSection) {
+			rseqanimvalue[numframes + 1].value = ((double)anim_array.at(frameCounter - 1) * oldScale + shift) / newScale;
+			*write_offset += sizeof(short);
+			frameCounter += 1;
+		}
 	}
+	anim_array.erase(anim_array.begin(), anim_array.begin() + totalFrames);
 }
 
 std::vector<std::string> ConvertMDL_49_RSEQ(char* mdl_buffer, std::string output_dir, std::string filename, std::string override_path, std::vector<std::pair<std::pair<int, int>, int>>& nodedata) {
@@ -942,7 +955,7 @@ std::vector<std::string> ConvertMDL_53_RSEQ(char* mdl_buffer, std::string output
 
 			// movement
 			if (pV53AnimDesc[anim_idx].framemovementindex) {
-				int mmSectionFrames = 127;
+				int mmSectionFrames = 254;
 
 				tf2::framemovement_t* v53Movement = PTR_FROM_IDX(tf2::framemovement_t, &pV53AnimDesc[anim_idx], pV53AnimDesc[anim_idx].framemovementindex);
 				r5r::mstudioframemovement_t* v54Movement = reinterpret_cast<r5r::mstudioframemovement_t*>(g_model.pData);
@@ -954,7 +967,7 @@ std::vector<std::string> ConvertMDL_53_RSEQ(char* mdl_buffer, std::string output
 				v54Movement->sectionFrames = (pV53AnimDesc[anim_idx].numframes < mmSectionFrames) ? pV53AnimDesc[anim_idx].numframes : mmSectionFrames;
 				g_model.pData += sizeof(r5r::mstudioframemovement_t);
 
-				uint32_t mmNumSections = pV53AnimDesc[anim_idx].numframes / (mmSectionFrames + 1) + 1;
+				uint32_t mmNumSections = (pV53AnimDesc[anim_idx].numframes - 1) / mmSectionFrames + 1;
 				uint32_t* mmSectionIndexes = reinterpret_cast<uint32_t*>(g_model.pData);
 				g_model.pData += mmNumSections * sizeof(uint32_t);
 
@@ -993,7 +1006,7 @@ std::vector<std::string> ConvertMDL_53_RSEQ(char* mdl_buffer, std::string output
 					g_model.pData += 4 * sizeof(short);
 
 					int mmNumFrames = v54Movement->sectionFrames;
-					if (i + 1 == mmNumSections) mmNumFrames = pV53AnimDesc[anim_idx].numframes - ((i) * (mmSectionFrames - 1));
+					if (i + 1 == mmNumSections) mmNumFrames = pV53AnimDesc[anim_idx].numframes - (i * mmSectionFrames);
 
 					size_t size = 0;
 
