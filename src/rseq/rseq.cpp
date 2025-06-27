@@ -942,7 +942,7 @@ std::vector<std::string> ConvertMDL_53_RSEQ(char* mdl_buffer, std::string output
 
 			// movement
 			if (pV53AnimDesc[anim_idx].framemovementindex) {
-				int mmSectionMaxFrames = 127;
+				int mmSectionFrames = 127;
 
 				tf2::framemovement_t* v53Movement = PTR_FROM_IDX(tf2::framemovement_t, &pV53AnimDesc[anim_idx], pV53AnimDesc[anim_idx].framemovementindex);
 				r5r::mstudioframemovement_t* v54Movement = reinterpret_cast<r5r::mstudioframemovement_t*>(g_model.pData);
@@ -951,10 +951,10 @@ std::vector<std::string> ConvertMDL_53_RSEQ(char* mdl_buffer, std::string output
 				v54Movement->scale.y = v53Movement->scale.y;
 				v54Movement->scale.z = v53Movement->scale.z;
 				v54Movement->scale.w = v53Movement->scale.w;
-				v54Movement->sectionFrames = pV53AnimDesc[anim_idx].numframes < 128 ? pV53AnimDesc[anim_idx].numframes : 128;
+				v54Movement->sectionFrames = (pV53AnimDesc[anim_idx].numframes < mmSectionFrames) ? pV53AnimDesc[anim_idx].numframes : mmSectionFrames;
 				g_model.pData += sizeof(r5r::mstudioframemovement_t);
 
-				uint32_t mmNumSections = pV53AnimDesc[anim_idx].numframes / (mmSectionMaxFrames + 1) + 1;
+				uint32_t mmNumSections = pV53AnimDesc[anim_idx].numframes / (mmSectionFrames + 1) + 1;
 				uint32_t* mmSectionIndexes = reinterpret_cast<uint32_t*>(g_model.pData);
 				g_model.pData += mmNumSections * sizeof(uint32_t);
 
@@ -993,7 +993,7 @@ std::vector<std::string> ConvertMDL_53_RSEQ(char* mdl_buffer, std::string output
 					g_model.pData += 4 * sizeof(short);
 
 					int mmNumFrames = v54Movement->sectionFrames;
-					if (i == mmNumSections - 1) mmNumFrames = pV53AnimDesc[anim_idx].numframes - ((mmNumSections - 1) * mmSectionMaxFrames);
+					if (i + 1 == mmNumSections) mmNumFrames = pV53AnimDesc[anim_idx].numframes - ((i) * (mmSectionFrames - 1));
 
 					size_t size = 0;
 
