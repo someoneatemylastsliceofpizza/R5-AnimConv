@@ -231,8 +231,8 @@ std::vector<std::string> ConvertMDL_49_RSEQ(char* mdl_buffer, std::string output
 			for (int i = 0; i < pV7RseqDesc->numautolayers; i++) {
 				std::string n = std::string(STRING_FROM_IDX(reinterpret_cast<char*>(mdl_buffer), -pStudioSeqDesc[v49AutoLayer[i].iSequence].baseptr + pStudioSeqDesc[v49AutoLayer[i].iSequence].sznameindex)) + ".rseq";
 				std::replace(n.begin(), n.end(), '\\', '/');
-				n = n.substr(n.find_last_of('/') + 1);
 				if (!override_path.empty()) {
+					n = n.substr(n.find_last_of('/') + 1);
 					n = override_path + (override_path.back() == '\\' ? "" : "\\") + n;
 				}
 				std::replace(n.begin(), n.end(), '\\', '/');
@@ -671,8 +671,8 @@ std::vector<std::string> ConvertMDL_53_RSEQ(char* mdl_buffer, std::string output
 			for (int i = 0; i < pV7RseqDesc->numautolayers; i++) {
 				std::string n = std::string(STRING_FROM_IDX(reinterpret_cast<char*>(mdl_buffer), -pV53SeqDesc[v53AutoLayer[i].iSequence].baseptr + pV53SeqDesc[v53AutoLayer[i].iSequence].szlabelindex)) + ".rseq";
 				std::replace(n.begin(), n.end(), '\\', '/');
-				n = n.substr(n.find_last_of('/') + 1);
 				if (!override_path.empty()) {
+					n = n.substr(n.find_last_of('/') + 1);
 					n = override_path + (override_path.back() == '\\' ? "" : "\\") + n;
 				}
 				std::replace(n.begin(), n.end(), '\\', '/');
