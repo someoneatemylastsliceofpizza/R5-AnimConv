@@ -791,6 +791,13 @@ std::vector<std::string> ConvertMDL_53_RSEQ(char* mdl_buffer, std::string output
 					int flags = 0;
 					int tmp_r, tmp_p;
 
+					// skipped the broken data
+					if (v53AnimRle->bone > pV53MdlHdr->numbones) {
+						rAnimDesc->flags = 0x20;
+						g_model.pData = g_model.pData - rAnimDesc->animindex;
+						break;
+					}
+
 					r5r::studioanimvalue_ptr_t* pRseqRotV{};
 					r5r::studioanimvalue_ptr_t* pRseqPosV{};
 					tf2::animvalue_ptr_t* pMdlRotV{};
