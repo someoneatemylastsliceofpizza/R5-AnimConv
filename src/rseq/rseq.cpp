@@ -557,10 +557,8 @@ std::vector<std::string> ConvertMDL_53_RSEQ(char* mdl_buffer, std::string output
 	for (int seq_idx = 0; seq_idx < pV53MdlHdr->numlocalseq; seq_idx++) {
 		print("[%3d/%3d] ", seq_idx + 1, pV53MdlHdr->numlocalseq);
 
-		int base_ptr = pV53SeqDesc[seq_idx].baseptr;
-
 		std::string seq_dir, seqdescname;
-		std::string raw_seq_name = STRING_FROM_IDX(reinterpret_cast<char*>(mdl_buffer), -base_ptr + pV53SeqDesc[seq_idx].szlabelindex);
+		std::string raw_seq_name = STRING_FROM_IDX(reinterpret_cast<char*>(&pV53SeqDesc[seq_idx]), pV53SeqDesc[seq_idx].szlabelindex);
 		std::replace(raw_seq_name.begin(), raw_seq_name.end(), '\\', '/');
 		std::replace(override_path.begin(), override_path.end(), '/', '\\');
 		std::string seq_name = (raw_seq_name.rfind('/') != std::string::npos) ? raw_seq_name.substr(raw_seq_name.rfind('/') + 1, raw_seq_name.size()) + ".rseq" : raw_seq_name + ".rseq";
@@ -631,7 +629,7 @@ std::vector<std::string> ConvertMDL_53_RSEQ(char* mdl_buffer, std::string output
 		BeginStringTable();
 
 		AddToStringTable((char*)pV7RseqDesc, &pV7RseqDesc->szlabelindex, seqdescname.c_str());
-		AddToStringTable((char*)pV7RseqDesc, &pV7RseqDesc->szactivitynameindex, STRING_FROM_IDX(reinterpret_cast<char*>(mdl_buffer), pV53SeqDesc[seq_idx].szactivitynameindex - base_ptr));
+		AddToStringTable((char*)pV7RseqDesc, &pV7RseqDesc->szactivitynameindex, STRING_FROM_IDX(reinterpret_cast<char*>(&pV53SeqDesc[seq_idx]), pV53SeqDesc[seq_idx].szactivitynameindex));
 
 		//posekey 
 		if (pV53SeqDesc[seq_idx].posekeyindex) {
@@ -649,7 +647,7 @@ std::vector<std::string> ConvertMDL_53_RSEQ(char* mdl_buffer, std::string output
 		//events
 		pV7RseqDesc->eventindex = g_model.pData - g_model.pBase;
 		r5r::mstudioevent_t* rseqEvent = reinterpret_cast<r5r::mstudioevent_t*>(g_model.pData);
-		pt2::mstudioevent_t* studioEvent = reinterpret_cast<pt2::mstudioevent_t*>(mdl_buffer - base_ptr + pV53SeqDesc[seq_idx].eventindex);
+		pt2::mstudioevent_t* studioEvent = PTR_FROM_IDX(pt2::mstudioevent_t,&pV53SeqDesc[seq_idx], pV53SeqDesc[seq_idx].eventindex);
 		for (int i = 0; i < pV7RseqDesc->numevents; i++) {
 			rseqEvent[i].cycle = studioEvent[i].cycle;
 			rseqEvent[i].event = studioEvent[i].event;
@@ -663,7 +661,7 @@ std::vector<std::string> ConvertMDL_53_RSEQ(char* mdl_buffer, std::string output
 		if (pV53SeqDesc[seq_idx].numautolayers) {
 			pV7RseqDesc->numautolayers = pV53SeqDesc[seq_idx].numautolayers;
 			pV7RseqDesc->autolayerindex = g_model.pData - g_model.pBase;
-			pt2::mstudioautolayer_t* v53AutoLayer = reinterpret_cast<pt2::mstudioautolayer_t*>(mdl_buffer - base_ptr + pV53SeqDesc[seq_idx].autolayerindex);
+			pt2::mstudioautolayer_t* v53AutoLayer = PTR_FROM_IDX(pt2::mstudioautolayer_t, &pV53SeqDesc[seq_idx], pV53SeqDesc[seq_idx].autolayerindex);
 			r5r::mstudioautolayer_t* v54AutoLayer = reinterpret_cast<r5r::mstudioautolayer_t*>(g_model.pData);
 			for (int i = 0; i < pV7RseqDesc->numautolayers; i++) {
 				std::string n = std::string(STRING_FROM_IDX(reinterpret_cast<char*>(mdl_buffer), -pV53SeqDesc[v53AutoLayer[i].iSequence].baseptr + pV53SeqDesc[v53AutoLayer[i].iSequence].szlabelindex)) + ".rseq";
@@ -687,7 +685,7 @@ std::vector<std::string> ConvertMDL_53_RSEQ(char* mdl_buffer, std::string output
 
 		//weight list
 		pV7RseqDesc->weightlistindex = g_model.pData - g_model.pBase;
-		float* mdl_weight = reinterpret_cast<float*>(mdl_buffer - base_ptr + pV53SeqDesc[seq_idx].weightlistindex);
+		float* mdl_weight = PTR_FROM_IDX(float, &pV53SeqDesc[seq_idx], pV53SeqDesc[seq_idx].weightlistindex);
 		float* rseq_weight = reinterpret_cast<float*>(g_model.pData);
 		for (int i = 0; i < pV53MdlHdr->numbones; i++) {
 			rseq_weight[i] = mdl_weight[i];
