@@ -565,9 +565,6 @@ std::vector<std::string> ConvertMDL_53_RSEQ(char* mdl_buffer, std::string output
 		std::replace(override_path.begin(), override_path.end(), '/', '\\');
 		std::string seq_name = (raw_seq_name.rfind('/') != std::string::npos) ? raw_seq_name.substr(raw_seq_name.rfind('/') + 1, raw_seq_name.size()) + ".rseq" : raw_seq_name + ".rseq";
 
-
-		//n = override_path + (override_path.back() == '\\' ? "" : "\\") + n;
-
 		// override path
 		if (!override_path.empty()) {
 			seq_dir = override_path;
@@ -708,7 +705,6 @@ std::vector<std::string> ConvertMDL_53_RSEQ(char* mdl_buffer, std::string output
 		}
 		g_model.pData += sizeof(r5r::mstudioactivitymodifier_t) * pV7RseqDesc->numactivitymodifiers;
 
-
 		//blends
 		pV7RseqDesc->animindexindex = g_model.pData - g_model.pBase;
 		short* studio_blends = PTR_FROM_IDX(short, &pV53SeqDesc[seq_idx], pV53SeqDesc[seq_idx].animindexindex);
@@ -753,7 +749,6 @@ std::vector<std::string> ConvertMDL_53_RSEQ(char* mdl_buffer, std::string output
 				g_model.pData += 4 * num_sections;
 			}
 
-
 			rAnimDesc->animindex = g_model.pData - (char*)rAnimDesc;
 			rAnimDesc->sectionindex = hasSections ? rAnimDesc->animindex - ((num_sections) * 4) : 0;
 			rAnimDesc->sectionframes = pV53AnimDesc[anim_idx].sectionframes;
@@ -789,7 +784,6 @@ std::vector<std::string> ConvertMDL_53_RSEQ(char* mdl_buffer, std::string output
 					int read_offset = 8;
 					int write_offset = sizeof(r5r::mstudio_rle_anim_t);
 					int flags = 0;
-					int tmp_r, tmp_p;
 
 					// skipped the broken data
 					if (v53AnimRle->bone > pV53MdlHdr->numbones) {
