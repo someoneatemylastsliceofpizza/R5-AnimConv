@@ -128,11 +128,52 @@ struct Quaternion64 {
 	uint64_t y : 21;
 	uint64_t z : 21;
 	uint64_t wneg : 1;
+
+	inline float decode(uint64_t v1) const {
+		int32_t v2 = static_cast<int32_t>(v1) - 1048576;
+		return static_cast<float>(v2) / 1048576.5f;
+	}
+	inline static uint64_t encode(float v1) {
+		int32_t v2 = static_cast<int32_t>(roundf(v1 * 1048576.5f));
+		return static_cast<uint64_t>(v2 + 1048576);
+	}
+
+    inline Quaternion64& operator=(const Quaternion64& other) {
+        this->x = other.x;
+        this->y = other.y;
+        this->z = other.z;
+        this->wneg = other.wneg;
+        return *this;
+    }
 };
 
 struct Matrix3x4_t {
 	float m[3][4];
 };
+
+inline Quaternion UnpackQuat64(Quaternion64 q64) {
+	Quaternion q;
+	q.x = q64.decode(q64.x);
+	q.y = q64.decode(q64.y);
+	q.z = q64.decode(q64.z);
+	float w_sq = 1.0f - (q.x * q.x + q.y * q.y + q.z * q.z);
+	q.w = sqrtf(w_sq);
+
+	if (q64.wneg)
+		q.w = -q.w;
+
+	return q;
+}
+
+inline Quaternion64 PackQuat64(Quaternion q) {
+	Quaternion64 q64;
+	q64.x = Quaternion64::encode(q.x);
+	q64.y = Quaternion64::encode(q.y);
+	q64.z = Quaternion64::encode(q.z);
+	q64.wneg = (q.w < 0.0f) ? 1 : 0;
+
+	return q64;
+}
 
 
 inline uint64_t StringToGuid(const char* string)
