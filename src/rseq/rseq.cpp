@@ -156,11 +156,10 @@ std::vector<std::string> ConvertMDL_49_RSEQ(char* mdl_buffer, std::string output
 		print("...  ");
 #endif
 
-		if (seqdescname != "ref.rseq")
-			sequence_names.push_back(seqdescname);
+		sequence_names.push_back(seqdescname);
 
 		if (pStudioSeqDesc[seq_idx].localentrynode != pStudioSeqDesc[seq_idx].localexitnode)
-			nodedata.push_back({ {pStudioSeqDesc[seq_idx].localentrynode , pStudioSeqDesc[seq_idx].localexitnode}, seq_idx - 1 /*doesn't include ref.rseq*/ });
+			nodedata.push_back({ {pStudioSeqDesc[seq_idx].localentrynode , pStudioSeqDesc[seq_idx].localexitnode}, seq_idx});
 
 		//header
 		g_model.pBase = new char[32 * 1024 * 1024] {};
@@ -223,9 +222,9 @@ std::vector<std::string> ConvertMDL_49_RSEQ(char* mdl_buffer, std::string output
 		g_model.pData += sizeof(r5r::mstudioevent_t) * pV7RseqDesc->numevents;
 
 		//autolayer
+		pV7RseqDesc->autolayerindex = g_model.pData - g_model.pBase;
 		if (pStudioSeqDesc[seq_idx].numautolayers) {
 			pV7RseqDesc->numautolayers = pStudioSeqDesc[seq_idx].numautolayers;
-			pV7RseqDesc->autolayerindex = g_model.pData - g_model.pBase;
 			pt2::mstudioautolayer_t* v49AutoLayer = reinterpret_cast<pt2::mstudioautolayer_t*>(mdl_buffer - base_ptr + pStudioSeqDesc[seq_idx].autolayerindex);
 			r5r::mstudioautolayer_t* v54AutoLayer = reinterpret_cast<r5r::mstudioautolayer_t*>(g_model.pData);
 			for (int i = 0; i < pV7RseqDesc->numautolayers; i++) {
@@ -237,7 +236,7 @@ std::vector<std::string> ConvertMDL_49_RSEQ(char* mdl_buffer, std::string output
 				}
 				std::replace(n.begin(), n.end(), '\\', '/');
 				v54AutoLayer[i].assetSequence = StringToGuid(n.c_str());
-				v54AutoLayer[i].iSequence = v49AutoLayer[i].iSequence + sequence_names.size() - seq_idx - 1; //
+				v54AutoLayer[i].iSequence = v49AutoLayer[i].iSequence;
 				v54AutoLayer[i].iPose = v49AutoLayer[i].iPose;
 				v54AutoLayer[i].flags = v49AutoLayer[i].flags;
 				v54AutoLayer[i].start = v49AutoLayer[i].start;
@@ -551,6 +550,7 @@ std::vector<std::string> ConvertMDL_53_RSEQ(char* mdl_buffer, std::string output
 	Vector3* studioRotScale = PTR_FROM_IDX(Vector3, linearboneindexes, linearboneindexes->rotscaleindex);
 	Vector3* studioPos = PTR_FROM_IDX(Vector3, linearboneindexes, linearboneindexes->posindex);
 	Vector3* studioRot = PTR_FROM_IDX(Vector3, linearboneindexes, linearboneindexes->rotindex);
+	Quaternion* studioQuat = PTR_FROM_IDX(Quaternion, linearboneindexes, linearboneindexes->quatindex);
 
 	std::vector<std::string> sequence_names;
 
@@ -591,11 +591,10 @@ std::vector<std::string> ConvertMDL_53_RSEQ(char* mdl_buffer, std::string output
 		print("...  ");
 #endif
 
-		if (seqdescname != "ref.rseq")
-			sequence_names.push_back(seqdescname);
+		sequence_names.push_back(seqdescname);
 
 		if (pV53SeqDesc[seq_idx].localentrynode != pV53SeqDesc[seq_idx].localexitnode)
-			nodedata.push_back({ {pV53SeqDesc[seq_idx].localentrynode , pV53SeqDesc[seq_idx].localexitnode}, seq_idx - 1 /*doesn't include ref.rseq*/ });
+			nodedata.push_back({ {pV53SeqDesc[seq_idx].localentrynode , pV53SeqDesc[seq_idx].localexitnode}, seq_idx });
 
 		//header
 		g_model.pBase = new char[32 * 1024 * 1024] {};
@@ -658,9 +657,9 @@ std::vector<std::string> ConvertMDL_53_RSEQ(char* mdl_buffer, std::string output
 		g_model.pData += sizeof(r5r::mstudioevent_t) * pV7RseqDesc->numevents;
 
 		//autolayer
+		pV7RseqDesc->autolayerindex = g_model.pData - g_model.pBase;
 		if (pV53SeqDesc[seq_idx].numautolayers) {
 			pV7RseqDesc->numautolayers = pV53SeqDesc[seq_idx].numautolayers;
-			pV7RseqDesc->autolayerindex = g_model.pData - g_model.pBase;
 			pt2::mstudioautolayer_t* v53AutoLayer = PTR_FROM_IDX(pt2::mstudioautolayer_t, &pV53SeqDesc[seq_idx], pV53SeqDesc[seq_idx].autolayerindex);
 			r5r::mstudioautolayer_t* v54AutoLayer = reinterpret_cast<r5r::mstudioautolayer_t*>(g_model.pData);
 			for (int i = 0; i < pV7RseqDesc->numautolayers; i++) {
@@ -672,7 +671,7 @@ std::vector<std::string> ConvertMDL_53_RSEQ(char* mdl_buffer, std::string output
 				}
 				std::replace(n.begin(), n.end(), '\\', '/');
 				v54AutoLayer[i].assetSequence = StringToGuid(n.c_str());
-				v54AutoLayer[i].iSequence = v53AutoLayer[i].iSequence + sequence_names.size() - seq_idx - 1;
+				v54AutoLayer[i].iSequence = v53AutoLayer[i].iSequence;
 				v54AutoLayer[i].iPose = v53AutoLayer[i].iPose;
 				v54AutoLayer[i].flags = v53AutoLayer[i].flags;
 				v54AutoLayer[i].start = v53AutoLayer[i].start;
@@ -781,6 +780,8 @@ std::vector<std::string> ConvertMDL_53_RSEQ(char* mdl_buffer, std::string output
 					rseqAnimRle->flags = 0;
 					int read_offset = 8;
 					int write_offset = sizeof(r5r::mstudio_rle_anim_t);
+					bool hasNoRot = v53AnimRle->flags & TF2_ANIM_NOROT;
+					bool isDelta = pV53AnimDesc[anim_idx].flags & 0x4;
 					int flags = 0;
 
 					// skipped the broken data
@@ -814,16 +815,23 @@ std::vector<std::string> ConvertMDL_53_RSEQ(char* mdl_buffer, std::string output
 
 					if (v53AnimRle->flags & TF2_ANIM_RAWROT) {
 						Quaternion64* rseqRawrot = PTR_FROM_IDX(Quaternion64, g_model.pData, write_offset);
-						rseqRawrot->x = v53AnimRle->rot.x;
-						rseqRawrot->y = v53AnimRle->rot.y;
-						rseqRawrot->z = v53AnimRle->rot.z;
-						rseqRawrot->wneg = v53AnimRle->rot.wneg;
+						if (hasNoRot) {
+							if (isDelta) {
+								Quaternion q = { 0,0,0,1 };
+								*rseqRawrot = PackQuat64(q);
+							} else {
+								Quaternion64 q64 = PackQuat64(studioQuat[v53AnimRle->bone]);
+								*rseqRawrot = q64;
+							}
+						} else {
+							*rseqRawrot = v53AnimRle->rot;
+						}
 						flags |= 0x2;
 						write_offset += 8;
 					}
 
 					//animvalue_ptr
-					if (!(v53AnimRle->flags & TF2_ANIM_RAWROT)) { //ANIMROT
+					if (!(v53AnimRle->flags & TF2_ANIM_RAWROT && !hasNoRot)) { //ANIMROT
 						pMdlRotV = PTR_FROM_IDX(tf2::animvalue_ptr_t, &v53AnimRle->rot, 0);
 					}
 
@@ -874,15 +882,15 @@ std::vector<std::string> ConvertMDL_53_RSEQ(char* mdl_buffer, std::string output
 						//rot x
 						pRseqRotV->flags |= 4;
 						read_offset = pMdlRotV->x;
-						ProcessAnimValue(&read_offset, &write_offset, (char*)&v53AnimRle->rot, pRseqRotV, num_frames, idx_offset, 0.00019175345f, studioRotScale[v53AnimRle->bone].x, rAnimDesc->flags & 0x4 ? 0 : studioRot[v53AnimRle->bone].x, !pMdlRotV->x);
+						ProcessAnimValue(&read_offset, &write_offset, (char*)&v53AnimRle->rot, pRseqRotV, num_frames, idx_offset, 0.00019175345f, studioRotScale[v53AnimRle->bone].x, isDelta ? 0 : studioRot[v53AnimRle->bone].x, !pMdlRotV->x);
 						//rot y
 						pRseqRotV->flags |= 2;
 						read_offset = pMdlRotV->y;
-						ProcessAnimValue(&read_offset, &write_offset, (char*)&v53AnimRle->rot, pRseqRotV, num_frames, idx_offset, 0.00019175345f, studioRotScale[v53AnimRle->bone].y, rAnimDesc->flags & 0x4 ? 0 : studioRot[v53AnimRle->bone].y, !pMdlRotV->y);
+						ProcessAnimValue(&read_offset, &write_offset, (char*)&v53AnimRle->rot, pRseqRotV, num_frames, idx_offset, 0.00019175345f, studioRotScale[v53AnimRle->bone].y, isDelta ? 0 : studioRot[v53AnimRle->bone].y, !pMdlRotV->y);
 						//rot z
 						pRseqRotV->flags |= 1;
 						read_offset = pMdlRotV->z;
-						ProcessAnimValue(&read_offset, &write_offset, (char*)&v53AnimRle->rot, pRseqRotV, num_frames, idx_offset, 0.00019175345f, studioRotScale[v53AnimRle->bone].z, rAnimDesc->flags & 0x4 ? 0 : studioRot[v53AnimRle->bone].z, !pMdlRotV->z);
+						ProcessAnimValue(&read_offset, &write_offset, (char*)&v53AnimRle->rot, pRseqRotV, num_frames, idx_offset, 0.00019175345f, studioRotScale[v53AnimRle->bone].z, isDelta ? 0 : studioRot[v53AnimRle->bone].z, !pMdlRotV->z);
 
 						pRseqRotV->offset = idx_offset.at(0) * 2;
 						pRseqRotV->idx1 = MAX(idx_offset.at(1) - idx_offset.at(0), 0);
