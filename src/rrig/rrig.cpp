@@ -14,7 +14,7 @@ std::string ConvertMDL_49_RRIG(char* mdl_buffer, std::string output_dir, std::st
 	g_model.pData = g_model.pBase;
 
 	// Header
-	pt2::studiohdr_t* pV49MdlHdr = reinterpret_cast<pt2::studiohdr_t*>(mdl_buffer);
+	p2::studiohdr_t* pV49MdlHdr = reinterpret_cast<p2::studiohdr_t*>(mdl_buffer);
 	r5r::studiohdr_t* pV54RrigHdr = reinterpret_cast<r5r::studiohdr_t*>(g_model.pData);
 
 	pV54RrigHdr->id = 'TSDI';
@@ -69,7 +69,7 @@ std::string ConvertMDL_49_RRIG(char* mdl_buffer, std::string output_dir, std::st
 	// Bones
 	pV54RrigHdr->boneindex = g_model.pData - g_model.pBase;
 	r5r::mstudiobone_t* v54bone = reinterpret_cast<r5r::mstudiobone_t*>(g_model.pData);
-	pt2::mstudiobone_t* v49bone = reinterpret_cast<pt2::mstudiobone_t*>(mdl_buffer + pV49MdlHdr->boneindex);
+	p2::mstudiobone_t* v49bone = reinterpret_cast<p2::mstudiobone_t*>(mdl_buffer + pV49MdlHdr->boneindex);
 	for (int i = 0; i < pV54RrigHdr->numbones; i++) {
 		const char* bone_name = STRING_FROM_IDX(&v49bone[i], v49bone[i].sznameindex);
 		AddToStringTable((char*)&v54bone[i], &v54bone[i].sznameindex, bone_name);
@@ -101,7 +101,7 @@ std::string ConvertMDL_49_RRIG(char* mdl_buffer, std::string output_dir, std::st
 	//hboxset
 	pV54RrigHdr->numhitboxsets = pV49MdlHdr->numhitboxsets;
 	pV54RrigHdr->hitboxsetindex = g_model.pData - g_model.pBase;
-	pt2::mstudiohitboxset_t* v49hboxset = PTR_FROM_IDX(pt2::mstudiohitboxset_t, mdl_buffer, pV49MdlHdr->hitboxsetindex);
+	p2::mstudiohitboxset_t* v49hboxset = PTR_FROM_IDX(p2::mstudiohitboxset_t, mdl_buffer, pV49MdlHdr->hitboxsetindex);
 	r5r::mstudiohitboxset_t* v54hboxset = reinterpret_cast<r5r::mstudiohitboxset_t*>(g_model.pData);
 	for (int i = 0; i < pV54RrigHdr->numhitboxsets; i++) {
 		AddToStringTable((char*)&v54hboxset[i], &v54hboxset[i].sznameindex, STRING_FROM_IDX(&v49hboxset[i], v49hboxset[i].sznameindex));
@@ -109,7 +109,7 @@ std::string ConvertMDL_49_RRIG(char* mdl_buffer, std::string output_dir, std::st
 		g_model.pData += sizeof(r5r::mstudiohitboxset_t);
 	}
 	for (int i = 0; i < pV54RrigHdr->numhitboxsets; i++) {
-		pt2::mstudiobbox_t* v49hitbox = PTR_FROM_IDX(pt2::mstudiobbox_t, &v49hboxset[i], v49hboxset[i].hitboxindex);
+		p2::mstudiobbox_t* v49hitbox = PTR_FROM_IDX(p2::mstudiobbox_t, &v49hboxset[i], v49hboxset[i].hitboxindex);
 		r5r::mstudiobbox_t* v54hitbox = reinterpret_cast<r5r::mstudiobbox_t*>(g_model.pData);
 		v54hboxset[i].hitboxindex = g_model.pData - (char*)&v54hboxset[i];
 		for (int j = 0; j < v54hboxset[i].numhitboxes; j++) {
@@ -182,7 +182,7 @@ std::string ConvertMDL_49_RRIG(char* mdl_buffer, std::string output_dir, std::st
 	//pose param
 	pV54RrigHdr->localposeparamindex = g_model.pData - g_model.pBase;
 	pV54RrigHdr->numlocalposeparameters = pV49MdlHdr->numlocalposeparameters;
-	pt2::mstudioposeparamdesc_t* v49poseparam = PTR_FROM_IDX(pt2::mstudioposeparamdesc_t, mdl_buffer, pV49MdlHdr->localposeparamindex);
+	p2::mstudioposeparamdesc_t* v49poseparam = PTR_FROM_IDX(p2::mstudioposeparamdesc_t, mdl_buffer, pV49MdlHdr->localposeparamindex);
 	r5r::mstudioposeparamdesc_t* v54poseparam = reinterpret_cast<r5r::mstudioposeparamdesc_t*>(g_model.pData);
 	for (int i = 0; i < pV54RrigHdr->numlocalposeparameters; i++) {
 		AddToStringTable((char*)&v54poseparam[i], &v54poseparam[i].sznameindex, STRING_FROM_IDX(&v49poseparam[i], v49poseparam[i].sznameindex));
@@ -194,7 +194,7 @@ std::string ConvertMDL_49_RRIG(char* mdl_buffer, std::string output_dir, std::st
 	//ik chains
 	pV54RrigHdr->numikchains = pV49MdlHdr->numikchains;
 	pV54RrigHdr->ikchainindex = g_model.pData - g_model.pBase;
-	pt2::mstudioikchain_t* v49ikchain = PTR_FROM_IDX(pt2::mstudioikchain_t, mdl_buffer, pV49MdlHdr->ikchainindex);
+	p2::mstudioikchain_t* v49ikchain = PTR_FROM_IDX(p2::mstudioikchain_t, mdl_buffer, pV49MdlHdr->ikchainindex);
 	r5r::mstudioikchain_t* v54ikchain = reinterpret_cast<r5r::mstudioikchain_t*>(g_model.pData);
 	for (int i = 0; i < pV49MdlHdr->numikchains; i++) {
 		AddToStringTable((char*)&v54ikchain[i], &v54ikchain[i].sznameindex, STRING_FROM_IDX(&v49ikchain[i], v49ikchain[i].sznameindex));
@@ -207,7 +207,7 @@ std::string ConvertMDL_49_RRIG(char* mdl_buffer, std::string output_dir, std::st
 	//ik links
 	for (int i = 0; i < pV49MdlHdr->numikchains; i++) {
 		v54ikchain[i].linkindex = g_model.pData - PTR_FROM_IDX(char, &v54ikchain[i], 0);
-		pt2::mstudioiklink_t* v49iklink = PTR_FROM_IDX(pt2::mstudioiklink_t, &v49ikchain[i], v49ikchain[i].linkindex);
+		p2::mstudioiklink_t* v49iklink = PTR_FROM_IDX(p2::mstudioiklink_t, &v49ikchain[i], v49ikchain[i].linkindex);
 		r5r::mstudioiklink_t* v54iklink = reinterpret_cast<r5r::mstudioiklink_t*>(g_model.pData);
 		v54iklink[0].bone = v49iklink[0].bone;
 		v54iklink[1].bone = v49iklink[1].bone;

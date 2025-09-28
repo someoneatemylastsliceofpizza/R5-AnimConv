@@ -22,7 +22,7 @@
 #define STUDIO_ANIMPTR_X	0x04
 
 
-namespace pt2 {
+namespace p2 {
 	struct mstudioanimsections_t
 	{
 		int animblock;
@@ -676,8 +676,8 @@ namespace r5r{
 
 	struct mstudio_rle_anim_t
 	{
-		short size : 13;
-		short flags : 3;
+		unsigned short size : 13;
+		unsigned short flags : 3;
 	};
 
 	struct boneflagarray {
@@ -685,8 +685,8 @@ namespace r5r{
 	};
 
 	struct studioanimvalue_ptr_t {
-		short offset : 13;
-		short flags : 3;
+		unsigned short offset : 13;
+		unsigned short flags : 3;
 		char idx1;
 		char idx2;
 	};

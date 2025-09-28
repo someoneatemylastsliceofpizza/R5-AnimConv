@@ -106,11 +106,11 @@ void ProcessArrayAnimValue(std::vector<int>& anim_array, size_t* write_offset, r
 }
 
 std::vector<std::string> ConvertMDL_49_RSEQ(char* mdl_buffer, std::string output_dir, std::string filename, std::string override_path, std::vector<std::pair<std::pair<int, int>, int>>& nodedata) {
-	pt2::studiohdr_t* pV49MdlHdr = reinterpret_cast<pt2::studiohdr_t*>(mdl_buffer);
-	pt2::mstudioseqdesc_t* pStudioSeqDesc = reinterpret_cast<pt2::mstudioseqdesc_t*>((mdl_buffer + pV49MdlHdr->localseqindex));
-	pt2::mstudioanimdesc_t* pV49AnimDesc = reinterpret_cast<pt2::mstudioanimdesc_t*>((mdl_buffer + pV49MdlHdr->localanimindex));
+	p2::studiohdr_t* pV49MdlHdr = reinterpret_cast<p2::studiohdr_t*>(mdl_buffer);
+	p2::mstudioseqdesc_t* pStudioSeqDesc = reinterpret_cast<p2::mstudioseqdesc_t*>((mdl_buffer + pV49MdlHdr->localseqindex));
+	p2::mstudioanimdesc_t* pV49AnimDesc = reinterpret_cast<p2::mstudioanimdesc_t*>((mdl_buffer + pV49MdlHdr->localanimindex));
 
-	pt2::mstudiolinearbone_t* linearboneindexes = PTR_FROM_IDX(pt2::mstudiolinearbone_t, mdl_buffer, pV49MdlHdr->srcbonetransformindex);
+	p2::mstudiolinearbone_t* linearboneindexes = PTR_FROM_IDX(p2::mstudiolinearbone_t, mdl_buffer, pV49MdlHdr->linearboneindex);
 	Vector3* studioPosScale = PTR_FROM_IDX(Vector3, linearboneindexes, linearboneindexes->posscaleindex);
 	Vector3* studioRotScale = PTR_FROM_IDX(Vector3, linearboneindexes, linearboneindexes->rotscaleindex);
 	Vector3* studioRot = PTR_FROM_IDX(Vector3, linearboneindexes, linearboneindexes->rotindex);
@@ -211,7 +211,7 @@ std::vector<std::string> ConvertMDL_49_RSEQ(char* mdl_buffer, std::string output
 		//events
 		pV7RseqDesc->eventindex = g_model.pData - g_model.pBase;
 		r5r::mstudioevent_t* rseqEvent = reinterpret_cast<r5r::mstudioevent_t*>(g_model.pData);
-		pt2::mstudioevent_t* studioEvent = reinterpret_cast<pt2::mstudioevent_t*>(mdl_buffer - base_ptr + pStudioSeqDesc[seq_idx].eventindex);
+		p2::mstudioevent_t* studioEvent = reinterpret_cast<p2::mstudioevent_t*>(mdl_buffer - base_ptr + pStudioSeqDesc[seq_idx].eventindex);
 		for (int i = 0; i < pV7RseqDesc->numevents; i++) {
 			rseqEvent[i].cycle = studioEvent[i].cycle;
 			rseqEvent[i].event = studioEvent[i].event;
@@ -225,7 +225,7 @@ std::vector<std::string> ConvertMDL_49_RSEQ(char* mdl_buffer, std::string output
 		pV7RseqDesc->autolayerindex = g_model.pData - g_model.pBase;
 		if (pStudioSeqDesc[seq_idx].numautolayers) {
 			pV7RseqDesc->numautolayers = pStudioSeqDesc[seq_idx].numautolayers;
-			pt2::mstudioautolayer_t* v49AutoLayer = reinterpret_cast<pt2::mstudioautolayer_t*>(mdl_buffer - base_ptr + pStudioSeqDesc[seq_idx].autolayerindex);
+			p2::mstudioautolayer_t* v49AutoLayer = reinterpret_cast<p2::mstudioautolayer_t*>(mdl_buffer - base_ptr + pStudioSeqDesc[seq_idx].autolayerindex);
 			r5r::mstudioautolayer_t* v54AutoLayer = reinterpret_cast<r5r::mstudioautolayer_t*>(g_model.pData);
 			for (int i = 0; i < pV7RseqDesc->numautolayers; i++) {
 				std::string n = std::string(STRING_FROM_IDX(reinterpret_cast<char*>(mdl_buffer), -pStudioSeqDesc[v49AutoLayer[i].iSequence].baseptr + pStudioSeqDesc[v49AutoLayer[i].iSequence].sznameindex)) + ".rseq";
@@ -299,7 +299,7 @@ std::vector<std::string> ConvertMDL_49_RSEQ(char* mdl_buffer, std::string output
 			ALIGN16(g_model.pData);
 
 			//anims
-			pt2::mstudioanimsections_t* animsections = nullptr;
+			p2::mstudioanimsections_t* animsections = nullptr;
 			unsigned int* sections_index{};
 			int animbase_ptr = pV49AnimDesc[anim_idx].baseptr;
 			int num_frames = pV49AnimDesc[anim_idx].numframes;
@@ -318,7 +318,7 @@ std::vector<std::string> ConvertMDL_49_RSEQ(char* mdl_buffer, std::string output
 			if (pV49AnimDesc[anim_idx].sectionindex) {
 				hasSections = true;
 				num_sections = (pV49AnimDesc[anim_idx].numframes / pV49AnimDesc[anim_idx].sectionframes) + 2;
-				animsections = reinterpret_cast<pt2::mstudioanimsections_t*>(mdl_buffer - animbase_ptr + pV49AnimDesc[anim_idx].sectionindex);
+				animsections = reinterpret_cast<p2::mstudioanimsections_t*>(mdl_buffer - animbase_ptr + pV49AnimDesc[anim_idx].sectionindex);
 				sections_index = reinterpret_cast<unsigned int*>(g_model.pData);
 				g_model.pData += 4 * num_sections;
 			}
@@ -345,18 +345,18 @@ std::vector<std::string> ConvertMDL_49_RSEQ(char* mdl_buffer, std::string output
 				//animvalue
 				int anim_block_offset = 0;
 				for (int i = 0; i < pV49MdlHdr->numbones; i++) {
-					pt2::mstudio_rle_anim_t* mdlAnimRle{};
+					p2::mstudio_rle_anim_t* mdlAnimRle{};
 
 					if (hasSections) {
-						mdlAnimRle = reinterpret_cast<pt2::mstudio_rle_anim_t*>(mdl_buffer - animbase_ptr + animsections[section].animindex + anim_block_offset);
+						mdlAnimRle = reinterpret_cast<p2::mstudio_rle_anim_t*>(mdl_buffer - animbase_ptr + animsections[section].animindex + anim_block_offset);
 					}
 					else {
-						mdlAnimRle = reinterpret_cast<pt2::mstudio_rle_anim_t*>(mdl_buffer - animbase_ptr + pV49AnimDesc[anim_idx].animindex + anim_block_offset);
+						mdlAnimRle = reinterpret_cast<p2::mstudio_rle_anim_t*>(mdl_buffer - animbase_ptr + pV49AnimDesc[anim_idx].animindex + anim_block_offset);
 					}
 
 					r5r::mstudio_rle_anim_t* rseqAnimRle = reinterpret_cast<r5r::mstudio_rle_anim_t*>(g_model.pData);
 					rseqAnimRle->flags = 0;
-					int read_offset = sizeof(pt2::mstudio_rle_anim_t);
+					int read_offset = sizeof(p2::mstudio_rle_anim_t);
 					int write_offset = sizeof(r5r::mstudio_rle_anim_t);
 					int flags = 0;
 					int tmp_r, tmp_p;
@@ -370,8 +370,8 @@ std::vector<std::string> ConvertMDL_49_RSEQ(char* mdl_buffer, std::string output
 
 					r5r::studioanimvalue_ptr_t* pRseqRotV{};
 					r5r::studioanimvalue_ptr_t* pRseqPosV{};
-					pt2::studioanimvalue_ptr_t* pMdlRotV{};
-					pt2::studioanimvalue_ptr_t* pMdlPosV{};
+					p2::studioanimvalue_ptr_t* pMdlRotV{};
+					p2::studioanimvalue_ptr_t* pMdlPosV{};
 
 					//posscale
 					if (mdlAnimRle->flags & R5_ANIM_ANIMPOS) {
@@ -403,14 +403,14 @@ std::vector<std::string> ConvertMDL_49_RSEQ(char* mdl_buffer, std::string output
 
 					//animvalue_ptr
 					if (mdlAnimRle->flags & R5_ANIM_ANIMROT) {
-						pMdlRotV = PTR_FROM_IDX(pt2::studioanimvalue_ptr_t, mdlAnimRle, read_offset);
+						pMdlRotV = PTR_FROM_IDX(p2::studioanimvalue_ptr_t, mdlAnimRle, read_offset);
 						tmp_r = read_offset;
-						read_offset += sizeof(pt2::studioanimvalue_ptr_t);
+						read_offset += sizeof(p2::studioanimvalue_ptr_t);
 					}
 					if (mdlAnimRle->flags & R5_ANIM_ANIMPOS) {
-						pMdlPosV = PTR_FROM_IDX(pt2::studioanimvalue_ptr_t, mdlAnimRle, read_offset);
+						pMdlPosV = PTR_FROM_IDX(p2::studioanimvalue_ptr_t, mdlAnimRle, read_offset);
 						tmp_p = read_offset;
-						read_offset += sizeof(pt2::studioanimvalue_ptr_t);
+						read_offset += sizeof(p2::studioanimvalue_ptr_t);
 					}
 
 
@@ -491,7 +491,7 @@ std::vector<std::string> ConvertMDL_49_RSEQ(char* mdl_buffer, std::string output
 			//ikrules
 			rAnimDesc->numikrules = pV49AnimDesc[anim_idx].numikrules;
 			rAnimDesc->ikruleindex = g_model.pData - g_model.pBase - rseq_blends[blend_idx];
-			pt2::mstudioikrule_t* v49ikrule = reinterpret_cast<pt2::mstudioikrule_t*>(mdl_buffer - animbase_ptr + pV49AnimDesc[anim_idx].ikruleindex);
+			p2::mstudioikrule_t* v49ikrule = reinterpret_cast<p2::mstudioikrule_t*>(mdl_buffer - animbase_ptr + pV49AnimDesc[anim_idx].ikruleindex);
 			r5r::mstudioikrule_t* ikrule = reinterpret_cast<r5r::mstudioikrule_t*>(g_model.pData);
 			for (int i = 0; i < rAnimDesc->numikrules; i++) {
 				ikrule[i].chain = v49ikrule[i].chain;
@@ -546,7 +546,7 @@ std::vector<std::string> ConvertMDL_53_RSEQ(char* mdl_buffer, std::string output
 	tf2::mstudioseqdesc_t* pV53SeqDesc = reinterpret_cast<tf2::mstudioseqdesc_t*>((mdl_buffer + pV53MdlHdr->localseqindex));
 	tf2::mstudioanimdesc_t* pV53AnimDesc = reinterpret_cast<tf2::mstudioanimdesc_t*>((mdl_buffer + pV53MdlHdr->localanimindex));
 
-	pt2::mstudiolinearbone_t* linearboneindexes = PTR_FROM_IDX(pt2::mstudiolinearbone_t, mdl_buffer, pV53MdlHdr->linearboneindex);
+	p2::mstudiolinearbone_t* linearboneindexes = PTR_FROM_IDX(p2::mstudiolinearbone_t, mdl_buffer, pV53MdlHdr->linearboneindex);
 	Vector3* studioRotScale = PTR_FROM_IDX(Vector3, linearboneindexes, linearboneindexes->rotscaleindex);
 	Vector3* studioPos = PTR_FROM_IDX(Vector3, linearboneindexes, linearboneindexes->posindex);
 	Vector3* studioRot = PTR_FROM_IDX(Vector3, linearboneindexes, linearboneindexes->rotindex);
@@ -646,7 +646,7 @@ std::vector<std::string> ConvertMDL_53_RSEQ(char* mdl_buffer, std::string output
 		//events
 		pV7RseqDesc->eventindex = g_model.pData - g_model.pBase;
 		r5r::mstudioevent_t* rseqEvent = reinterpret_cast<r5r::mstudioevent_t*>(g_model.pData);
-		pt2::mstudioevent_t* studioEvent = PTR_FROM_IDX(pt2::mstudioevent_t,&pV53SeqDesc[seq_idx], pV53SeqDesc[seq_idx].eventindex);
+		p2::mstudioevent_t* studioEvent = PTR_FROM_IDX(p2::mstudioevent_t,&pV53SeqDesc[seq_idx], pV53SeqDesc[seq_idx].eventindex);
 		for (int i = 0; i < pV7RseqDesc->numevents; i++) {
 			rseqEvent[i].cycle = studioEvent[i].cycle;
 			rseqEvent[i].event = studioEvent[i].event;
@@ -660,7 +660,7 @@ std::vector<std::string> ConvertMDL_53_RSEQ(char* mdl_buffer, std::string output
 		pV7RseqDesc->autolayerindex = g_model.pData - g_model.pBase;
 		if (pV53SeqDesc[seq_idx].numautolayers) {
 			pV7RseqDesc->numautolayers = pV53SeqDesc[seq_idx].numautolayers;
-			pt2::mstudioautolayer_t* v53AutoLayer = PTR_FROM_IDX(pt2::mstudioautolayer_t, &pV53SeqDesc[seq_idx], pV53SeqDesc[seq_idx].autolayerindex);
+			p2::mstudioautolayer_t* v53AutoLayer = PTR_FROM_IDX(p2::mstudioautolayer_t, &pV53SeqDesc[seq_idx], pV53SeqDesc[seq_idx].autolayerindex);
 			r5r::mstudioautolayer_t* v54AutoLayer = reinterpret_cast<r5r::mstudioautolayer_t*>(g_model.pData);
 			for (int i = 0; i < pV7RseqDesc->numautolayers; i++) {
 				std::string n = std::string(STRING_FROM_IDX(reinterpret_cast<char*>(mdl_buffer), -pV53SeqDesc[v53AutoLayer[i].iSequence].baseptr + pV53SeqDesc[v53AutoLayer[i].iSequence].szlabelindex)) + ".rseq";
