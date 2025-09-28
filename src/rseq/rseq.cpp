@@ -110,7 +110,7 @@ std::vector<std::string> ConvertMDL_49_RSEQ(char* mdl_buffer, std::string output
 	p2::mstudioseqdesc_t* pStudioSeqDesc = reinterpret_cast<p2::mstudioseqdesc_t*>((mdl_buffer + pV49MdlHdr->localseqindex));
 	p2::mstudioanimdesc_t* pV49AnimDesc = reinterpret_cast<p2::mstudioanimdesc_t*>((mdl_buffer + pV49MdlHdr->localanimindex));
 
-	p2::mstudiolinearbone_t* linearboneindexes = PTR_FROM_IDX(p2::mstudiolinearbone_t, mdl_buffer, pV49MdlHdr->linearboneindex);
+	p2::mstudiolinearbone_t* linearboneindexes = PTR_FROM_IDX(p2::mstudiolinearbone_t, mdl_buffer, pV49MdlHdr->linearboneindex + 0x198);
 	Vector3* studioPosScale = PTR_FROM_IDX(Vector3, linearboneindexes, linearboneindexes->posscaleindex);
 	Vector3* studioRotScale = PTR_FROM_IDX(Vector3, linearboneindexes, linearboneindexes->rotscaleindex);
 	Vector3* studioRot = PTR_FROM_IDX(Vector3, linearboneindexes, linearboneindexes->rotindex);
