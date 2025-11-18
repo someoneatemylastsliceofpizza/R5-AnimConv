@@ -13,8 +13,8 @@ void WriteRRIG_v8(std::string output_dir, const temp::rig_t& rig) {
 
 	pRigHdr->id = 'TSDI';
 	pRigHdr->version = 54;
-	pRigHdr->checksum = 0x67676767;
-	memcpy_s(pRigHdr->name, 64, rig.name.c_str(), rig.name.length());
+	pRigHdr->checksum = 0x67676767; 
+	strncpy_s(pRigHdr->name, 64, rig.name.c_str() + std::max<int>(0, rig.name.size() - 63), _TRUNCATE);
 	pRigHdr->eyeposition = rig.hdr.eyeposition;
 	pRigHdr->flags = rig.hdr.flags;
 	pRigHdr->numbones = rig.hdr.numbones;
@@ -30,7 +30,6 @@ void WriteRRIG_v8(std::string output_dir, const temp::rig_t& rig) {
 	std::filesystem::create_directories(output_dir + "\\" + temp_model_dir.parent_path().string());
 	std::ofstream outRrig(output_dir + "\\" + rig.name, std::ios::out | std::ios::binary);
 
-	memcpy_s(&pRigHdr->name, 64, rig.name.c_str(), rig.name.length());
 	stringTables.Add((char*)pRigHdr, &pRigHdr->sznameindex, rig.name);
 	stringTables.Add((char*)pRigHdr, &pRigHdr->surfacepropindex, rig.hdr.surfaceprop);
 
