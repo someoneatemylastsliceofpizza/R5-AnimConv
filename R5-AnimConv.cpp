@@ -34,9 +34,7 @@ int main(int argc, char* argv[]) {
 	// -rp <override_rrig_path> : Override internal Rrig path //e.g. -rp "animrig/titans/buddy"
 	// -sp <override_rseq_path> : Override internal Rseq path //e.g. -sp "animseq/titans/buddy_sp" to avoid autolayer guid mismatch
 
-	std::string usage = "Usage: \n \
-  Mdl  mode: R5-AnimConv.exe <model.mdl> [-verbose] [-ne] [-rp <override_rrig_path>] [-sp <override_rseq_path>]\n \
-  Rseq mode: R5-AnimConv.exe <parent directory> [-verbose] [-ne] [-i <in assets season>] [-o <out assets season>]\n";
+	std::string usage = "Usage: R5-AnimConv.exe <parent directory> [-verbose] [-ne] [-i <in assets season>] [-o <out assets season>]\n";
 
 	if (argc < 2) {
 		std::cerr << usage;
