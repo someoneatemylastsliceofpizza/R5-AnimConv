@@ -9,7 +9,7 @@
 ### Usage
 
 ```bash
-R5-AnimConv.exe <model.mdl> [-verbose] [-ne] [-rp <override_rrig_path>] [-sp <override_rseq_path>]"
+R5-AnimConv.exe <model.mdl> [-verbose] [-ne] [-rp <override_rrig_path>] [-sp <override_rseq_path>]
 ```
 
 >**Options**
