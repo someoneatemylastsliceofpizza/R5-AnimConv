@@ -20,17 +20,29 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="R5-AnimConv.cpp" />
+    <ClCompile Include="src\mdl\mdl.cpp" />
+    <ClCompile Include="src\pch.cpp" />
     <ClCompile Include="src\rrig\rrig.cpp" />
     <ClCompile Include="src\rseq\rseq.cpp" />
-    <ClCompile Include="src\utils\print.cpp" />
-    <ClCompile Include="src\utils\stringtable.cpp" />
+    <ClCompile Include="src\rseq\rseq_functions.cpp" />
+    <ClCompile Include="src\utils\math_helper.cpp" />
+    <ClCompile Include="src\utils\print.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="resource.h" />
     <ClInclude Include="src\define.h" />
+    <ClInclude Include="src\mdl\mdl.h" />
     <ClInclude Include="src\mdl\studio.h" />
+    <ClInclude Include="src\pch.h" />
     <ClInclude Include="src\rrig\rrig.h" />
     <ClInclude Include="src\rseq\rseq.h" />
     <ClInclude Include="src\utils\print.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="R5-AnimConv.rc" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
@@ -85,12 +97,22 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IntDir>$(Platform)\$(ShortProjectName)\$(Configuration)\</IntDir>
+    <IntDir>cache\$(Platform)\$(ShortProjectName)\$(Configuration)\</IntDir>
     <IncludePath>$(ProjectDir);$(ProjectDir)\src;$(IncludePath)</IncludePath>
+    <OutDir>$(SolutionDir)bin\$(Configuration)_$(Platform)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IntDir>$(Platform)\$(ShortProjectName)\$(Configuration)\</IntDir>
+    <IntDir>cache\$(Platform)\$(ShortProjectName)\$(Configuration)\</IntDir>
     <IncludePath>$(ProjectDir);$(ProjectDir)\src;$(IncludePath)</IncludePath>
+    <OutDir>$(SolutionDir)bin\$(Configuration)_$(Platform)\</OutDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <OutDir>$(SolutionDir)bin\$(Configuration)_$(Platform)\</OutDir>
+    <IntDir>cache\$(Platform)\$(ShortProjectName)\$(Configuration)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <OutDir>$(SolutionDir)bin\$(Configuration)_$(Platform)\</OutDir>
+    <IntDir>cache\$(Platform)\$(ShortProjectName)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -126,14 +148,14 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <PrecompiledHeaderFile>
-      </PrecompiledHeaderFile>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <PrecompiledHeader>Create</PrecompiledHeader>
+      <PrecompiledHeaderFile>src/pch.h</PrecompiledHeaderFile>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <LinkTimeCodeGenerationObjectFile>$(IntDir)$(TargetName).iobj</LinkTimeCodeGenerationObjectFile>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -144,16 +166,19 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalIncludeDirectories>
       </AdditionalIncludeDirectories>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <PrecompiledHeader>Create</PrecompiledHeader>
+      <PrecompiledHeaderFile>src/pch.h</PrecompiledHeaderFile>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <LinkTimeCodeGenerationObjectFile>$(IntDir)$(TargetName).iobj</LinkTimeCodeGenerationObjectFile>
     </Link>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

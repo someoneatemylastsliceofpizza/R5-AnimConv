@@ -1,473 +1,189 @@
-#include <iostream>  
-#include <fstream>
-#include <vector>
-#include <filesystem>
-#include <mdl/studio.h>
-#include <utils/stringtable.cpp>
-#include <utils/print.h>
+#include "src/pch.h"
+#include <rrig/rrig.h>
 
-void SetFlagForDescendants(r5r::mstudiobone_t* bones, int numbones, int parentIdx, int flag);
-
-std::string ConvertMDL_49_RRIG(char* mdl_buffer, std::string output_dir, std::string filename, std::string override_path, std::vector<std::pair<std::pair<int, int>, int>>&nodedata) {
-	print("\nConverting rrig...\n");
-	g_model.pBase = new char[32 * 1024 * 1024] {};
-	g_model.pData = g_model.pBase;
+void WriteRRIG_v8(std::string output_dir, const temp::rig_t& rig) {
+	std::vector<char> buffer(16 * 1024 * 1024, 0);
+	char* pBase = buffer.data();
+	char* pData = pBase;
+	temp::StringTable stringTables{};
+	stringTables.Init();
 
 	// Header
-	p2::studiohdr_t* pV49MdlHdr = reinterpret_cast<p2::studiohdr_t*>(mdl_buffer);
-	r5r::studiohdr_t* pV54RrigHdr = reinterpret_cast<r5r::studiohdr_t*>(g_model.pData);
+	r5::v8::studiohdr_t* pRigHdr = reinterpret_cast<r5::v8::studiohdr_t*>(pData);
 
-	pV54RrigHdr->id = 'TSDI';
-	pV54RrigHdr->version = 54;
-	pV54RrigHdr->checksum = 0xFFFFFFFF;
-	memcpy_s(pV54RrigHdr->name, 64, pV49MdlHdr->name, 64);
-	pV54RrigHdr->eyeposition = pV49MdlHdr->eyeposition;
-	pV54RrigHdr->illumposition = pV49MdlHdr->illumposition;
-	pV54RrigHdr->numbones = pV49MdlHdr->numbones;
-	pV54RrigHdr->numlocalnodes = pV49MdlHdr->numlocalnodes;
-	pV54RrigHdr->mass = 1.0f;
-	pV54RrigHdr->contents = pV49MdlHdr->contents;
-	pV54RrigHdr->constdirectionallightdot = pV49MdlHdr->constdirectionallightdot;
-	pV54RrigHdr->rootLOD = pV49MdlHdr->rootLOD;
-	pV54RrigHdr->numAllowedRootLODs = pV49MdlHdr->numAllowedRootLODs;
-	pV54RrigHdr->defaultFadeDist = -1;
-	pV54RrigHdr->flVertAnimFixedPointScale = pV49MdlHdr->flVertAnimFixedPointScale;
+	pRigHdr->id = 'TSDI';
+	pRigHdr->version = 54;
+	pRigHdr->checksum = 0x67676767;
+	memcpy_s(pRigHdr->name, 64, rig.name.c_str(), rig.name.length());
+	pRigHdr->eyeposition = rig.hdr.eyeposition;
+	pRigHdr->flags = rig.hdr.flags;
+	pRigHdr->numbones = rig.hdr.numbones;
+	pRigHdr->activitylistversion = rig.hdr.activitylistversion;
+	pRigHdr->defaultFadeDist = rig.hdr.defaultFadeDist;
+	pRigHdr->mass = rig.hdr.mass;
+	pRigHdr->contents = rig.hdr.contents;
+	pRigHdr->mins = rig.hdr.mins;
+	pRigHdr->maxs = rig.hdr.maxs;
+	pData += sizeof(r5::v8::studiohdr_t);
 
-	g_model.pHdr = pV54RrigHdr;
-	g_model.pData += sizeof(r5r::studiohdr_t);
-	BeginStringTable();
+	std::filesystem::path temp_model_dir = rig.name;
+	std::filesystem::create_directories(output_dir + "\\" + temp_model_dir.parent_path().string());
+	std::ofstream outRrig(output_dir + "\\" + rig.name, std::ios::out | std::ios::binary);
 
-	std::string rig_dir = "";
-	std::string model_name = "";
-	std::string raw_rig_name = pV49MdlHdr->name;
-	std::replace(raw_rig_name.begin(), raw_rig_name.end(), '\\', '/');
-	std::replace(override_path.begin(), override_path.end(), '/', '\\');
-	std::string rig_name = (raw_rig_name.rfind('/') != std::string::npos) ? raw_rig_name.substr(raw_rig_name.rfind('/') + 1, raw_rig_name.size()) : raw_rig_name;
-
-	if (!override_path.empty()) {
-		rig_dir = override_path;
-		model_name = override_path + (override_path.back() == '\\' ? "" : "\\") + rig_name;
-	}
-	else {
-		rig_dir = (raw_rig_name.rfind('/') != std::string::npos) ? raw_rig_name.substr(0, raw_rig_name.rfind('/')) + '/' : "";
-		model_name = rig_dir + rig_name;
-	}
-
-	std::string temp_model_dir = model_name;
-	std::replace(temp_model_dir.begin(), temp_model_dir.end(), '/', '\\');
-	model_name = temp_model_dir.substr(0, temp_model_dir.rfind('.')) + ".rrig";
-
-	std::string model_dir = model_name.substr(0, model_name.find_last_of("\\") + 1);
-
-	std::filesystem::create_directories(output_dir + "\\" + model_dir);
-	std::ofstream outRrig(output_dir + "\\" + model_name, std::ios::out | std::ios::binary);
-
-	memcpy_s(&pV54RrigHdr->name, 64, model_name.c_str(), MIN(model_name.length(), 64));
-	AddToStringTable((char*)pV54RrigHdr, &pV54RrigHdr->sznameindex, model_name.c_str());
-	AddToStringTable((char*)pV54RrigHdr, &pV54RrigHdr->surfacepropindex, STRING_FROM_IDX(pV49MdlHdr, pV49MdlHdr->surfacepropindex));
+	memcpy_s(&pRigHdr->name, 64, rig.name.c_str(), rig.name.length());
+	stringTables.Add((char*)pRigHdr, &pRigHdr->sznameindex, rig.name);
+	stringTables.Add((char*)pRigHdr, &pRigHdr->surfacepropindex, rig.hdr.surfaceprop);
 
 	// Bones
-	pV54RrigHdr->boneindex = g_model.pData - g_model.pBase;
-	r5r::mstudiobone_t* v54bone = reinterpret_cast<r5r::mstudiobone_t*>(g_model.pData);
-	p2::mstudiobone_t* v49bone = reinterpret_cast<p2::mstudiobone_t*>(mdl_buffer + pV49MdlHdr->boneindex);
-	for (int i = 0; i < pV54RrigHdr->numbones; i++) {
-		const char* bone_name = STRING_FROM_IDX(&v49bone[i], v49bone[i].sznameindex);
-		AddToStringTable((char*)&v54bone[i], &v54bone[i].sznameindex, bone_name);
-		v54bone[i].parent = v49bone[i].parent;
-		v54bone[i].bonecontroller[0] = v49bone[i].bonecontroller[0];
-		v54bone[i].bonecontroller[1] = v49bone[i].bonecontroller[1];
-		v54bone[i].bonecontroller[2] = v49bone[i].bonecontroller[2];
-		v54bone[i].bonecontroller[3] = v49bone[i].bonecontroller[3];
-		v54bone[i].bonecontroller[4] = v49bone[i].bonecontroller[4];
-		v54bone[i].bonecontroller[5] = v49bone[i].bonecontroller[5];
-		v54bone[i].pos = v49bone[i].pos;
-		v54bone[i].quat = v49bone[i].quat;
-		v54bone[i].rot = v49bone[i].rot;
-		v54bone[i].scale = Vector3{ 1,1,1 };
-		v54bone[i].poseToBone = v49bone[i].poseToBone;
-		v54bone[i].qAlignment = v49bone[i].qAlignment;
-		v54bone[i].flags = v49bone[i].flags & 0x200;
-		v54bone[i].proctype = 0;
-		v54bone[i].procindex = 0;
-		v54bone[i].physicsbone = 0;
-		AddToStringTable((char*)&v54bone[i], &v54bone[i].surfacepropidx, STRING_FROM_IDX(&v49bone[i], v49bone[i].surfacepropidx));
-		v54bone[i].contents = v49bone[i].contents;
-		v54bone[i].surfacepropLookup = v49bone[i].surfacepropLookup;
+	pRigHdr->boneindex = pData - pBase;
+	r5::v8::mstudiobone_t* pBones = reinterpret_cast<r5::v8::mstudiobone_t*>(pData);
+	for (int i = 0; i < pRigHdr->numbones; i++) {
+		auto& bone = rig.bones[i];
+		stringTables.Add((char*)&pBones[i], &pBones[i].sznameindex, bone.name);
+		pBones[i].parent = bone.parent;
+		pBones[i].bonecontroller[0] = bone.bonecontroller[0];
+		pBones[i].bonecontroller[1] = bone.bonecontroller[1];
+		pBones[i].bonecontroller[2] = bone.bonecontroller[2];
+		pBones[i].bonecontroller[3] = bone.bonecontroller[3];
+		pBones[i].bonecontroller[4] = bone.bonecontroller[4];
+		pBones[i].bonecontroller[5] = bone.bonecontroller[5];
+		pBones[i].pos = bone.pos;
+		pBones[i].quat = bone.q;
+		pBones[i].rot = bone.rot;
+		pBones[i].scale = bone.scl;
+		pBones[i].poseToBone = bone.poseToBone;
+		pBones[i].qAlignment = bone.qAlignment;
+		pBones[i].flags = bone.flags;
+		pBones[i].proctype = bone.proctype; //
+		pBones[i].procindex = bone.procindex; //
+		pBones[i].physicsbone = bone.physicsbone; //
+		stringTables.Add((char*)&pBones[i], &pBones[i].surfacepropidx, bone.surfaceprop);
+		pBones[i].contents = bone.contents;
+		pBones[i].surfacepropLookup = bone.surfacepropLookup;
 	}
-	g_model.pHdr = v54bone;
-	g_model.pData += pV54RrigHdr->numbones * sizeof(r5r::mstudiobone_t);
+	pData += pRigHdr->numbones * sizeof(r5::v8::mstudiobone_t);
 
-	//TODO: test
+	// bonecontroller?
+	pRigHdr->numbonecontrollers = 0;
+	pRigHdr->bonecontrollerindex = pData - pBase;
+
 	//hboxset
-	pV54RrigHdr->numhitboxsets = pV49MdlHdr->numhitboxsets;
-	pV54RrigHdr->hitboxsetindex = g_model.pData - g_model.pBase;
-	p2::mstudiohitboxset_t* v49hboxset = PTR_FROM_IDX(p2::mstudiohitboxset_t, mdl_buffer, pV49MdlHdr->hitboxsetindex);
-	r5r::mstudiohitboxset_t* v54hboxset = reinterpret_cast<r5r::mstudiohitboxset_t*>(g_model.pData);
-	for (int i = 0; i < pV54RrigHdr->numhitboxsets; i++) {
-		AddToStringTable((char*)&v54hboxset[i], &v54hboxset[i].sznameindex, STRING_FROM_IDX(&v49hboxset[i], v49hboxset[i].sznameindex));
-		v54hboxset[i].numhitboxes = v49hboxset[i].numhitboxes;
-		g_model.pData += sizeof(r5r::mstudiohitboxset_t);
+	pRigHdr->numhitboxsets = rig.hitboxsets.size();
+	pRigHdr->hitboxsetindex = pData - pBase;
+	r5::v8::mstudiohitboxset_t* pHitboxsets = reinterpret_cast<r5::v8::mstudiohitboxset_t*>(pData);
+	for (int i = 0; i < pRigHdr->numhitboxsets; i++) {
+		stringTables.Add((char*)&pHitboxsets[i], &pHitboxsets[i].sznameindex, rig.hitboxsets[i].name);
+		pHitboxsets[i].numhitboxes = rig.hitboxsets[i].hitboxes.size();
+		pData += sizeof(r5::v8::mstudiohitboxset_t);
 	}
-	for (int i = 0; i < pV54RrigHdr->numhitboxsets; i++) {
-		p2::mstudiobbox_t* v49hitbox = PTR_FROM_IDX(p2::mstudiobbox_t, &v49hboxset[i], v49hboxset[i].hitboxindex);
-		r5r::mstudiobbox_t* v54hitbox = reinterpret_cast<r5r::mstudiobbox_t*>(g_model.pData);
-		v54hboxset[i].hitboxindex = g_model.pData - (char*)&v54hboxset[i];
-		for (int j = 0; j < v54hboxset[i].numhitboxes; j++) {
-			AddToStringTable((char*)&v54hitbox[j], &v54hitbox[j].szhitboxnameindex, STRING_FROM_IDX(&v49hitbox[j], v49hitbox[j].szhitboxnameindex));
-			AddToStringTable((char*)&v54hitbox[j], &v54hitbox[j].hitdataGroupOffset, STRING_FROM_IDX(&v49hitbox[j], v49hitbox[j].szhitboxnameindex));
-			v54hitbox[j].bone = v49hitbox[j].bone;
-			v54hitbox[j].group = v49hitbox[j].group;
-			v54hitbox[j].bbmin = v49hitbox[j].bbmin;
-			v54hitbox[j].bbmax = v49hitbox[j].bbmax;
-			g_model.pData += sizeof(r5r::mstudiobbox_t);
+
+	for (int i = 0; i < pRigHdr->numhitboxsets; i++) {
+		r5::v8::mstudiobbox_t* pHitboxes = reinterpret_cast<r5::v8::mstudiobbox_t*>(pData);
+		pHitboxsets[i].hitboxindex = pData - (char*)&pHitboxsets[i];
+		for (int j = 0; j < pHitboxsets[i].numhitboxes; j++) {
+			auto& hitbox = rig.hitboxsets[i].hitboxes[j];
+			stringTables.Add((char*)&pHitboxes[j], &pHitboxes[j].szhitboxnameindex, hitbox.name);
+			stringTables.Add((char*)&pHitboxes[j], &pHitboxes[j].hitdataGroupOffset, hitbox.hitdataGroupOffset);
+			pHitboxes[j].bone = hitbox.bone;
+			pHitboxes[j].group = hitbox.group;
+			pHitboxes[j].bbmin = hitbox.bbmin;
+			pHitboxes[j].bbmax = hitbox.bbmax;
+			pHitboxes[j].critShotOverride = hitbox.critShotOverride;
+			pData += sizeof(r5::v8::mstudiobbox_t);
 		}
 	}
 
 	//bone by name
-	pV54RrigHdr->bonetablebynameindex = g_model.pData - g_model.pBase;
-	char* v54bonebyname = reinterpret_cast<char*>(g_model.pData);
-	memcpy_s(v54bonebyname, 256, mdl_buffer + pV49MdlHdr->bonetablebynameindex, pV54RrigHdr->numbones);
-	g_model.pData += sizeof(char) * pV54RrigHdr->numbones;
-	ALIGN4(g_model.pData);
+	pRigHdr->bonetablebynameindex = pData - pBase;
+	char* pBonebynames = reinterpret_cast<char*>(pData);
+	memcpy_s(pBonebynames, 256, rig.bonebyname.data(), pRigHdr->numbones);
+	pData += sizeof(char) * pRigHdr->numbones;
+	ALIGN4(pData);
+
+
+	pRigHdr->localattachmentindex = pData - pBase;
 
 	//node name
-	pV54RrigHdr->localnodenameindex = g_model.pData - g_model.pBase;
-	int* v49nodesname = reinterpret_cast<int*>((mdl_buffer + pV49MdlHdr->localnodenameindex));
-	for (int i = 0; i < pV54RrigHdr->numlocalnodes; i++) {
-		int* v54nodesname = reinterpret_cast<int*>(g_model.pData);
-		AddToStringTable((char*)pV54RrigHdr, &v54nodesname[i], STRING_FROM_IDX(reinterpret_cast<char*>(mdl_buffer), v49nodesname[i]));
+	pRigHdr->numlocalnodes = rig.nodes.size();
+	pRigHdr->localnodenameindex = pData - pBase;
+	for (int i = 0; i < pRigHdr->numlocalnodes; i++) {
+		int* pNodenames = reinterpret_cast<int*>(pData);
+		stringTables.Add((char*)pRigHdr, &pNodenames[i], rig.nodes[i].name);
 	}
-	g_model.pData += sizeof(int) * pV54RrigHdr->numlocalnodes;
+	pData += sizeof(int) * pRigHdr->numlocalnodes;
 
 	//node data index (allocate)
-	pV54RrigHdr->nodeDataOffsetsOffset = g_model.pData - g_model.pBase;
-	int* v54nodedataindex = reinterpret_cast<int*>(g_model.pData);
-	g_model.pData += sizeof(int) * pV54RrigHdr->numlocalnodes;
+	pRigHdr->nodeDataOffsetsOffset = pData - pBase;
+	int* pNodeDataIndex = reinterpret_cast<int*>(pData);
+	pData += sizeof(int) * pRigHdr->numlocalnodes;
 
 	//node data
-	char* v49nodedata = reinterpret_cast<char*>((mdl_buffer + pV49MdlHdr->localnodeindex));
-	short* v54nodedata = reinterpret_cast<short*>(g_model.pData);
-	int offset = 0;
-	int c_node = 0;
-	for (int i = 0; i < pV54RrigHdr->numlocalnodes; i++) {
-		v54nodedataindex[i] = g_model.pData - g_model.pBase;
+	for (int i = 0; i < pRigHdr->numlocalnodes; i++) {
+		pNodeDataIndex[i] = pData - pBase;
+		int transitionsCount = rig.nodes[i].nodedatas.size();
+		int* pNodes = reinterpret_cast<int*>(pData);
+		*pNodes = transitionsCount;
+		pData += sizeof(int);
 
-		int nodecount = 0;
-		std::vector<char> v49nodedata_buffer;
-
-		for (int j = 0; j < pV54RrigHdr->numlocalnodes; j++) {
-			char* node = &v49nodedata[pV54RrigHdr->numlocalnodes * i + j];
-			if (*node > 0) {
-				v49nodedata_buffer.push_back(*node);
-				nodecount++;
-			}
+		for (int j = 0; j < transitionsCount; j++) {
+			auto& nodedata = rig.nodes[i].nodedatas[j];
+			r5::v8::nodedata_t* pNodeData = reinterpret_cast<r5::v8::nodedata_t*>(pData);
+			pNodeData[j].tonode = nodedata.tonode;
+			pNodeData[j].seq = nodedata.seq;
 		}
-
-		v54nodedata[offset] = nodecount;
-		offset += 2;
-		g_model.pData += sizeof(int);
-		for (int j = 0; j < nodecount; j++) {
-			v54nodedata[offset] = v49nodedata_buffer.at(j);
-            for (const auto& node : nodedata) {
-				if (node.first == std::pair{ i + 1, v49nodedata_buffer.at(j) }) {
-					v54nodedata[offset + 1] = node.second;
-					break;
-				}
-            }
-			offset += 2;
-			g_model.pData += sizeof(int);
-		};
+		pData += sizeof(r5::v8::nodedata_t) * transitionsCount;
 	}
 
 	//pose param
-	pV54RrigHdr->localposeparamindex = g_model.pData - g_model.pBase;
-	pV54RrigHdr->numlocalposeparameters = pV49MdlHdr->numlocalposeparameters;
-	p2::mstudioposeparamdesc_t* v49poseparam = PTR_FROM_IDX(p2::mstudioposeparamdesc_t, mdl_buffer, pV49MdlHdr->localposeparamindex);
-	r5r::mstudioposeparamdesc_t* v54poseparam = reinterpret_cast<r5r::mstudioposeparamdesc_t*>(g_model.pData);
-	for (int i = 0; i < pV54RrigHdr->numlocalposeparameters; i++) {
-		AddToStringTable((char*)&v54poseparam[i], &v54poseparam[i].sznameindex, STRING_FROM_IDX(&v49poseparam[i], v49poseparam[i].sznameindex));
-		v54poseparam[i].start = v49poseparam[i].start;
-		v54poseparam[i].end = v49poseparam[i].end;
+	pRigHdr->numlocalposeparameters = rig.poseparams.size();
+	pRigHdr->localposeparamindex = pData - pBase;
+	r5::v8::mstudioposeparamdesc_t* pPoseparams = reinterpret_cast<r5::v8::mstudioposeparamdesc_t*>(pData);
+	for (int i = 0; i < pRigHdr->numlocalposeparameters; i++) {
+		stringTables.Add((char*)&pPoseparams[i], &pPoseparams[i].sznameindex, rig.poseparams[i].name);
+		pPoseparams[i].start = rig.poseparams[i].start;
+		pPoseparams[i].end = rig.poseparams[i].end;
+		pPoseparams[i].flags = rig.poseparams[i].flags;
+		pPoseparams[i].loop = rig.poseparams[i].loop;
 	}
-	g_model.pData += sizeof(r5r::mstudioposeparamdesc_t) * pV54RrigHdr->numlocalposeparameters;
+	pData += sizeof(r5::v8::mstudioposeparamdesc_t) * pRigHdr->numlocalposeparameters;
 
 	//ik chains
-	pV54RrigHdr->numikchains = pV49MdlHdr->numikchains;
-	pV54RrigHdr->ikchainindex = g_model.pData - g_model.pBase;
-	p2::mstudioikchain_t* v49ikchain = PTR_FROM_IDX(p2::mstudioikchain_t, mdl_buffer, pV49MdlHdr->ikchainindex);
-	r5r::mstudioikchain_t* v54ikchain = reinterpret_cast<r5r::mstudioikchain_t*>(g_model.pData);
-	for (int i = 0; i < pV49MdlHdr->numikchains; i++) {
-		AddToStringTable((char*)&v54ikchain[i], &v54ikchain[i].sznameindex, STRING_FROM_IDX(&v49ikchain[i], v49ikchain[i].sznameindex));
-		v54ikchain[i].linktype = v49ikchain[i].linktype;
-		v54ikchain[i].numlinks = v49ikchain[i].numlinks;
-		v54ikchain[i].unk = 0.707f;
+	pRigHdr->numikchains = rig.ikchains.size();
+	pRigHdr->ikchainindex = pData - pBase;
+	r5::v8::mstudioikchain_t* pIkchains = reinterpret_cast<r5::v8::mstudioikchain_t*>(pData);
+	for (int i = 0; i < pRigHdr->numikchains; i++) {
+		stringTables.Add((char*)&pIkchains[i], &pIkchains[i].sznameindex, rig.ikchains[i].name);
+		pIkchains[i].linktype = rig.ikchains[i].linktype;
+		pIkchains[i].unk = rig.ikchains[i].unk;
+		pIkchains[i].numlinks = rig.ikchains[i].iklinks.size();
 	}
-	g_model.pData += sizeof(r5r::mstudioikchain_t) * pV54RrigHdr->numikchains;
+	pData += sizeof(r5::v8::mstudioikchain_t) * pRigHdr->numikchains;
 
 	//ik links
-	for (int i = 0; i < pV49MdlHdr->numikchains; i++) {
-		v54ikchain[i].linkindex = g_model.pData - PTR_FROM_IDX(char, &v54ikchain[i], 0);
-		p2::mstudioiklink_t* v49iklink = PTR_FROM_IDX(p2::mstudioiklink_t, &v49ikchain[i], v49ikchain[i].linkindex);
-		r5r::mstudioiklink_t* v54iklink = reinterpret_cast<r5r::mstudioiklink_t*>(g_model.pData);
-		v54iklink[0].bone = v49iklink[0].bone;
-		v54iklink[1].bone = v49iklink[1].bone;
-		v54iklink[2].bone = v49iklink[2].bone;
-
-		v54bone[v54iklink[0].bone].flags |= 0x20;
-		v54bone[v54iklink[1].bone].flags |= 0x20;
-		v54bone[v54iklink[2].bone].flags |= 0x20;
-		SetFlagForDescendants(v54bone, pV54RrigHdr->numbones, v54iklink[0].bone, 0x20);
-		g_model.pData += sizeof(r5r::mstudioiklink_t) * v54ikchain->numlinks;
+	for (int i = 0; i < pRigHdr->numikchains; i++) {
+		pIkchains[i].linkindex = pData - (char*)&pIkchains[i];
+		r5::v8::mstudioiklink_t* pIklinks = reinterpret_cast<r5::v8::mstudioiklink_t*>(pData);
+		for (int j = 0; j < rig.ikchains[i].iklinks.size(); j++) {
+			auto& iklink = rig.ikchains[i].iklinks[j];
+			pIklinks[j].bone = iklink.bone;
+			pIklinks[j].kneeDir = iklink.kneeDir;
+		}
+		pData += sizeof(r5::v8::mstudioiklink_t) * pIkchains->numlinks;
 	}
 
 	//write all data
-	g_model.pData = WriteStringTable(g_model.pData);
-	ALIGN4(g_model.pData);
-	std::string ret_name = model_dir + filename + ".rrig";
-	std::replace(ret_name.begin(), ret_name.end(), '\\', '/');
-	print("    ->%s  ...", ret_name.c_str());
-
-	pV54RrigHdr->length = g_model.pData - g_model.pBase;
-	outRrig.write(g_model.pBase, g_model.pData - g_model.pBase);
-	g_model.stringTable.clear();
-	delete[] g_model.pBase;
-	print("Done!\n\n");
-
-	return ret_name;
+	pData = stringTables.Write(pData);
+	ALIGN4(pData);
+	pRigHdr->length = pData - pBase;
+	outRrig.write(pBase, pData - pBase);
+	stringTables.Init();
 }
 
-std::string ConvertMDL_53_RRIG(char* mdl_buffer, std::string output_dir, std::string filename, std::string override_path, std::vector<std::pair<std::pair<int, int>, int>>& nodedata) {
-	print("\nConverting rrig...\n");
-	g_model.pBase = new char[32 * 1024 * 1024] {};
-	g_model.pData = g_model.pBase;
-
-	// Header
-	tf2::studiohdr_t* pV53MdlHdr = reinterpret_cast<tf2::studiohdr_t*>(mdl_buffer);
-	r5r::studiohdr_t* pV54RrigHdr = reinterpret_cast<r5r::studiohdr_t*>(g_model.pData);
-
-	pV54RrigHdr->id = 'TSDI';
-	pV54RrigHdr->version = 54;
-	pV54RrigHdr->checksum = 0xFFFFFFFF;
-	memcpy_s(pV54RrigHdr->name, 64, pV53MdlHdr->name, 64);
-	pV54RrigHdr->eyeposition = pV53MdlHdr->eyeposition;
-	pV54RrigHdr->illumposition = pV53MdlHdr->illumposition;
-	pV54RrigHdr->numbones = pV53MdlHdr->numbones;
-	pV54RrigHdr->numlocalnodes = pV53MdlHdr->numlocalnodes;
-	pV54RrigHdr->mass = 1.0f;
-	pV54RrigHdr->contents = pV53MdlHdr->contents;
-	pV54RrigHdr->constdirectionallightdot = pV53MdlHdr->constdirectionallightdot;
-	pV54RrigHdr->rootLOD = pV53MdlHdr->rootLOD;
-	pV54RrigHdr->numAllowedRootLODs = pV53MdlHdr->numAllowedRootLODs;
-	pV54RrigHdr->defaultFadeDist = -1;
-	pV54RrigHdr->flVertAnimFixedPointScale = pV53MdlHdr->flVertAnimFixedPointScale;
-
-	g_model.pHdr = pV54RrigHdr;
-	g_model.pData += sizeof(r5r::studiohdr_t);
-	BeginStringTable();
-
-	std::string rig_dir = "";
-	std::string model_name = "";
-	std::string raw_rig_name = pV53MdlHdr->name;
-	std::replace(raw_rig_name.begin(), raw_rig_name.end(), '\\', '/');
-	std::replace(override_path.begin(), override_path.end(), '/', '\\'); 
-	std::string rig_name = (raw_rig_name.rfind('/') != std::string::npos) ? raw_rig_name.substr(raw_rig_name.rfind('/') + 1, raw_rig_name.size()) : raw_rig_name ;
-
-	if (!override_path.empty()) {
-		rig_dir = override_path;
-		model_name = override_path + (override_path.back() == '\\' ? "" : "\\") + rig_name;
-	} else {
-		rig_dir = (raw_rig_name.rfind('/') != std::string::npos) ? raw_rig_name.substr(0, raw_rig_name.rfind('/')) + '/' : "";
-		model_name = rig_dir + rig_name;
-	}
-	
-	std::string temp_model_dir = model_name;
-	std::replace(temp_model_dir.begin(), temp_model_dir.end(), '/', '\\');
-	model_name = temp_model_dir.substr(0, temp_model_dir.rfind('.')) + ".rrig";
-
-	std::string model_dir = model_name.substr(0, model_name.find_last_of("\\") + 1);
-
-	std::filesystem::create_directories(output_dir + "\\" + model_dir);
-	std::ofstream outRrig(output_dir + "\\" + model_name, std::ios::out | std::ios::binary);
-
-	memcpy_s(&pV54RrigHdr->name, 64, model_name.c_str(), MIN(model_name.length(), 64));
-	AddToStringTable((char*)pV54RrigHdr, &pV54RrigHdr->sznameindex, model_name.c_str());
-	AddToStringTable((char*)pV54RrigHdr, &pV54RrigHdr->surfacepropindex, STRING_FROM_IDX(pV53MdlHdr, pV53MdlHdr->surfacepropindex));
-
-	// Bones
-	pV54RrigHdr->boneindex = g_model.pData - g_model.pBase;
-	r5r::mstudiobone_t* v54bone = reinterpret_cast<r5r::mstudiobone_t*>(g_model.pData);
-	tf2::mstudiobone_t* v53bone = reinterpret_cast<tf2::mstudiobone_t*>(mdl_buffer + pV53MdlHdr->boneindex);
-	for (int i = 0; i < pV54RrigHdr->numbones; i++) {
-		const char* bone_name = STRING_FROM_IDX(&v53bone[i], v53bone[i].sznameindex);
-		AddToStringTable((char*)&v54bone[i], &v54bone[i].sznameindex, bone_name);
-		v54bone[i].parent = v53bone[i].parent;
-		v54bone[i].bonecontroller[0] = v53bone[i].bonecontroller[0];
-		v54bone[i].bonecontroller[1] = v53bone[i].bonecontroller[1];
-		v54bone[i].bonecontroller[2] = v53bone[i].bonecontroller[2];
-		v54bone[i].bonecontroller[3] = v53bone[i].bonecontroller[3];
-		v54bone[i].bonecontroller[4] = v53bone[i].bonecontroller[4];
-		v54bone[i].bonecontroller[5] = v53bone[i].bonecontroller[5];
-		v54bone[i].pos = v53bone[i].pos;
-		v54bone[i].quat = v53bone[i].quat;
-		v54bone[i].rot = v53bone[i].rot;
-		v54bone[i].scale = Vector3{ 1,1,1 };
-		v54bone[i].poseToBone = v53bone[i].poseToBone;
-		v54bone[i].qAlignment = v53bone[i].qAlignment;
-		v54bone[i].flags = v53bone[i].flags & 0x200;
-		v54bone[i].proctype = 0;
-		v54bone[i].procindex = 0;
-		v54bone[i].physicsbone = 0;
-		AddToStringTable((char*)&v54bone[i], &v54bone[i].surfacepropidx, STRING_FROM_IDX(&v53bone[i], v53bone[i].surfacepropidx));
-		v54bone[i].contents = v53bone[i].contents;
-		v54bone[i].surfacepropLookup = v53bone[i].surfacepropLookup;
-	}
-	g_model.pHdr = v54bone;
-	g_model.pData += pV54RrigHdr->numbones * sizeof(r5r::mstudiobone_t);
-
-	//hboxset
-	pV54RrigHdr->numhitboxsets = pV53MdlHdr->numhitboxsets;
-	pV54RrigHdr->hitboxsetindex = g_model.pData - g_model.pBase;
-	tf2::mstudiohitboxset_t* v53hboxset = PTR_FROM_IDX(tf2::mstudiohitboxset_t, mdl_buffer, pV53MdlHdr->hitboxsetindex);
-	r5r::mstudiohitboxset_t* v54hboxset = reinterpret_cast<r5r::mstudiohitboxset_t*>(g_model.pData);
-	for(int i = 0; i < pV54RrigHdr->numhitboxsets; i++) {
-		AddToStringTable((char*)&v54hboxset[i], &v54hboxset[i].sznameindex, STRING_FROM_IDX(&v53hboxset[i], v53hboxset[i].sznameindex));
-		v54hboxset[i].numhitboxes = v53hboxset[i].numhitboxes;
-		g_model.pData += sizeof(r5r::mstudiohitboxset_t);
-	}
-	for (int i = 0; i < pV54RrigHdr->numhitboxsets; i++) {
-		tf2::mstudiobbox_t* v53hitbox = PTR_FROM_IDX(tf2::mstudiobbox_t, &v53hboxset[i], v53hboxset[i].hitboxindex);
-		r5r::mstudiobbox_t* v54hitbox = reinterpret_cast<r5r::mstudiobbox_t*>(g_model.pData);
-		v54hboxset[i].hitboxindex = g_model.pData - (char*)&v54hboxset[i];
-		for(int j = 0; j < v54hboxset[i].numhitboxes; j++) {
-			AddToStringTable((char*)&v54hitbox[j], &v54hitbox[j].szhitboxnameindex, STRING_FROM_IDX(&v53hitbox[j], v53hitbox[j].szhitboxnameindex));
-			AddToStringTable((char*)&v54hitbox[j], &v54hitbox[j].hitdataGroupOffset, STRING_FROM_IDX(&v53hitbox[j], v53hitbox[j].hitdataGroupOffset));
-			v54hitbox[j].bone = v53hitbox[j].bone;
-			v54hitbox[j].group = v53hitbox[j].group;
-			v54hitbox[j].bbmin = v53hitbox[j].bbmin;
-			v54hitbox[j].bbmax = v53hitbox[j].bbmax;
-			v54hitbox[j].critShotOverride = v53hitbox[j].critShotOverride;
-			g_model.pData += sizeof(r5r::mstudiobbox_t);
-		}
-	}
-
-	//bone by name
-	pV54RrigHdr->bonetablebynameindex = g_model.pData - g_model.pBase;
-	char* v54bonebyname = reinterpret_cast<char*>(g_model.pData);
-	memcpy_s(v54bonebyname, 256, mdl_buffer + pV53MdlHdr->bonetablebynameindex, pV54RrigHdr->numbones);
-	g_model.pData += sizeof(char) * pV54RrigHdr->numbones;
-	ALIGN4(g_model.pData);
-
-	//node name
-	pV54RrigHdr->localnodenameindex = g_model.pData - g_model.pBase;
-	int* v53nodesname = reinterpret_cast<int*>((mdl_buffer + pV53MdlHdr->localnodenameindex));
-	for (int i = 0; i < pV54RrigHdr->numlocalnodes; i++) {
-		int* v54nodesname = reinterpret_cast<int*>(g_model.pData);
-		AddToStringTable((char*)pV54RrigHdr, &v54nodesname[i], STRING_FROM_IDX(reinterpret_cast<char*>(mdl_buffer), v53nodesname[i]));
-	}
-	g_model.pData += sizeof(int) * pV54RrigHdr->numlocalnodes;
-
-	//node data index (allocate)
-	pV54RrigHdr->nodeDataOffsetsOffset = g_model.pData - g_model.pBase;
-	int* v54nodedataindex = reinterpret_cast<int*>(g_model.pData);
-	g_model.pData += sizeof(int) * pV54RrigHdr->numlocalnodes;
-
-	//node data
-	char* v53nodedata = reinterpret_cast<char*>((mdl_buffer + pV53MdlHdr->localnodeindex));
-	short* v54nodedata = reinterpret_cast<short*>(g_model.pData);
-	int offset = 0;
-	int c_node = 0;
-	for (int i = 0; i < pV54RrigHdr->numlocalnodes; i++) {
-		v54nodedataindex[i] = g_model.pData - g_model.pBase;
-
-		int nodecount = 0;
-		std::vector<char> v53nodedata_buffer;
-
-		for (int j = 0; j < pV54RrigHdr->numlocalnodes; j++) {
-			char* node = &v53nodedata[pV54RrigHdr->numlocalnodes * i + j];
-			if (*node > 0) {
-				v53nodedata_buffer.push_back(*node);
-				nodecount++;
-			}
-		}
-
-		v54nodedata[offset] = nodecount;
-		offset += 2;
-		g_model.pData += sizeof(int);
-		for (int j = 0; j < nodecount; j++) {
-			v54nodedata[offset] = v53nodedata_buffer.at(j);
-			for (const auto& node : nodedata) {
-				if (node.first == std::pair{ i + 1, v53nodedata_buffer.at(j) }) {
-					v54nodedata[offset + 1] = node.second;
-					break;
-				}
-			}
-			offset += 2;
-			g_model.pData += sizeof(int);
-		};
-	}
-
-	//pose param
-	pV54RrigHdr->localposeparamindex = g_model.pData - g_model.pBase;
-	pV54RrigHdr->numlocalposeparameters = pV53MdlHdr->numlocalposeparameters;
-	tf2::mstudioposeparamdesc_t* v53poseparam = PTR_FROM_IDX(tf2::mstudioposeparamdesc_t, mdl_buffer, pV53MdlHdr->localposeparamindex);
-	r5r::mstudioposeparamdesc_t* v54poseparam = reinterpret_cast<r5r::mstudioposeparamdesc_t*>(g_model.pData);
-	for (int i = 0; i < pV54RrigHdr->numlocalposeparameters; i++) {
-		AddToStringTable((char*)&v54poseparam[i], &v54poseparam[i].sznameindex, STRING_FROM_IDX(&v53poseparam[i], v53poseparam[i].sznameindex));
-		v54poseparam[i].start = v53poseparam[i].start;
-		v54poseparam[i].end = v53poseparam[i].end;
-	}
-	g_model.pData += sizeof(r5r::mstudioposeparamdesc_t) * pV54RrigHdr->numlocalposeparameters;
-
-	//ik chains
-	pV54RrigHdr->numikchains = pV53MdlHdr->numikchains;
-	pV54RrigHdr->ikchainindex = g_model.pData - g_model.pBase;
-	tf2::mstudioikchain_t* v53ikchain = PTR_FROM_IDX(tf2::mstudioikchain_t, mdl_buffer, pV53MdlHdr->ikchainindex);
-	r5r::mstudioikchain_t* v54ikchain = reinterpret_cast<r5r::mstudioikchain_t*>(g_model.pData);
-	for (int i = 0; i < pV53MdlHdr->numikchains; i++) {
-		AddToStringTable((char*)&v54ikchain[i], &v54ikchain[i].sznameindex, STRING_FROM_IDX(&v53ikchain[i], v53ikchain[i].sznameindex));
-		v54ikchain[i].linktype = v53ikchain[i].linktype;
-		v54ikchain[i].numlinks = v53ikchain[i].numlinks;
-		v54ikchain[i].unk = 0.707f;
-	}
-	g_model.pData += sizeof(r5r::mstudioikchain_t) * pV54RrigHdr->numikchains;
-
-	//ik links
-	for (int i = 0; i < pV53MdlHdr->numikchains; i++) {
-		v54ikchain[i].linkindex = g_model.pData - PTR_FROM_IDX(char, &v54ikchain[i], 0);
-		tf2::mstudioiklink_t* v53iklink = PTR_FROM_IDX(tf2::mstudioiklink_t, &v53ikchain[i], v53ikchain[i].linkindex);
-		r5r::mstudioiklink_t* v54iklink = reinterpret_cast<r5r::mstudioiklink_t*>(g_model.pData);
-		v54iklink[0].bone = v53iklink[0].bone;
-		v54iklink[1].bone = v53iklink[1].bone;
-		v54iklink[2].bone = v53iklink[2].bone;
-
-		v54bone[v54iklink[0].bone].flags |= 0x20;
-		v54bone[v54iklink[1].bone].flags |= 0x20;
-		v54bone[v54iklink[2].bone].flags |= 0x20;
-		SetFlagForDescendants(v54bone, pV54RrigHdr->numbones, v54iklink[0].bone, 0x20);
-		g_model.pData += sizeof(r5r::mstudioiklink_t) * v54ikchain->numlinks;
-	}
-
-	//write all data
-	g_model.pData = WriteStringTable(g_model.pData);
-	ALIGN4(g_model.pData);
-	std::string ret_name = model_name;
-	std::replace(ret_name.begin(), ret_name.end(), '\\', '/');
-	print("    ->%s  ...", ret_name.c_str());
-
-	pV54RrigHdr->length = g_model.pData - g_model.pBase;
-	outRrig.write(g_model.pBase, g_model.pData - g_model.pBase);
-	g_model.stringTable.clear();
-	delete[] g_model.pBase;
-	print("Done!\n\n");
-
-	return ret_name;
-}
-
-void SetFlagForDescendants(r5r::mstudiobone_t* bones, int numbones, int parentIdx, int flag) {
-	for (int i = 0; i < numbones; ++i) {
-		if (bones[i].parent == parentIdx) {
-			bones[i].flags |= flag;
-			SetFlagForDescendants(bones, numbones, i, flag);
+void SetFlagForDescendants(temp::rig_t& rig, int parentIdx, int flag) {
+	for (int i = 0; i < rig.hdr.numbones; ++i) {
+		if (rig.bones[i].parent == parentIdx) {
+			rig.bones[i].flags |= flag;
+			SetFlagForDescendants(rig, i, flag);
 		}
 	}
 }
