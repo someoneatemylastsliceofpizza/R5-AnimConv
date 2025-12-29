@@ -1,26 +1,17 @@
 ﻿#pragma once
-
 #include <cstdint> 
 
 #define STRING_FROM_IDX(base, idx) reinterpret_cast<const char*>((char*)base + idx)
 #define PTR_FROM_IDX(type, base, idx) reinterpret_cast<type*>((char*)base + idx)
+#define OFFSET(x) static_cast<uint32_t>((x & 0xFFFE) << (4 * (x & 1)))
+#define PRINTANDTHROW(file, msg) {printf("[!] Error at %s\n", file.c_str());printf("--> %s\n", msg);throw std::runtime_error(msg);}
 
 #define ALIGN2( a ) a = (char *)((__int64)((char *)a + 1) & ~ 1)
 #define ALIGN4( a ) a = (char *)((__int64)((char *)a + 3) & ~ 3)
 #define ALIGN16( a ) a = (char *)((__int64)((char *)a + 15) & ~ 15)
 
-#define MAX(a,b) ((a > b) ? a : b)
-#define MIN(a,b) ((a < b) ? a : b)
-
 constexpr auto M_PI = 3.14159265358979323846;
 
-// math
-float HalfToFloat(const uint16_t h);
-uint16_t FloatToHalf(float value);
-void SinCos(float radians, float* sine, float* cosine);
-
-// r5
-uint64_t StringToGuid(const char* string);
 
 struct Vector3 {
 	float x, y, z;
@@ -79,16 +70,11 @@ struct Vector3 {
 	}
 };
 
-struct Vector4{
+struct Vector4 {
 	float x, y, z, w;
 
-	inline float& operator[](int i) {
-		return ((float*)this)[i];
-	}
-
-	inline float operator[](int i) const {
-		return ((float*)this)[i];
-	}
+	inline float& operator[](int i) { return ((float*)this)[i]; }
+	inline float operator[](int i) const { return ((float*)this)[i]; }
 };
 
 struct Vector64
@@ -100,9 +86,9 @@ struct Vector64
 
 struct Vector48
 {
-	short x;
-	short y;
-	short z;
+	int16_t x;
+	int16_t y;
+	int16_t z;
 };
 
 struct Matrix3x4_t
@@ -135,17 +121,17 @@ struct Quaternion {
 
 		double sinr_cosp = 2.0 * (qw * qx + qy * qz);
 		double cosr_cosp = 1.0 - 2.0 * (qx * qx + qy * qy);
-		euler.x = std::atan2(sinr_cosp, cosr_cosp);
+		euler.x = (float)std::atan2(sinr_cosp, cosr_cosp);
 
 		double sinp = 2.0 * (qw * qy - qz * qx);
 		if (std::abs(sinp) >= 1.0)
-			euler.y = std::copysign(M_PI / 2.0, sinp);
+			euler.y = (float)std::copysign(M_PI / 2.0, sinp);
 		else
-			euler.y = std::asin(sinp);
+			euler.y = (float)std::asin(sinp);
 
 		double siny_cosp = 2.0 * (qw * qz + qx * qy);
 		double cosy_cosp = 1.0 - 2.0 * (qy * qy + qz * qz);
-		euler.z = std::atan2(siny_cosp, cosy_cosp);
+		euler.z = (float)std::atan2(siny_cosp, cosy_cosp);
 		return euler;
 	}
 };
@@ -273,8 +259,8 @@ namespace temp {
 				if (it.dupindex == -1) {
 					it.addr = pData;
 					if (it.ptr) {
-						*it.ptr = pData - it.base;
-						int length = it.string.length();
+						*it.ptr = int(pData - it.base);
+						size_t length = it.string.length();
 						strcpy_s(pData, length + 1, it.string.c_str());
 
 						pData += length;
@@ -283,7 +269,7 @@ namespace temp {
 					pData++;
 				}
 				else {
-					*it.ptr = stringTable[it.dupindex].addr - it.base;
+					*it.ptr = int(stringTable[it.dupindex].addr - it.base);
 				}
 			}
 			return pData;
@@ -302,18 +288,18 @@ namespace temp {
 	};
 
 	struct ikrule_t {
-		int index;
-		int type;
-		int chain;
-		int bone;
-		int slot;
+		int index = 0;
+		int type = 4;
+		int chain = 0;
+		int bone = 0;
+		int slot = 0;
 		float height = 50.f;
 		float radius = 15.f;
 		float floor = 0.f;
-		Vector3 pos;
-		Quaternion q;
-		float scale[6];
-		uint32_t sectionframes;
+		Vector3 pos{};
+		Quaternion q{};
+		float scale[6] = {0.f, 0.f, 0.f, 0.f, 0.f, 0.f};
+		uint32_t sectionframes = 0;
 		int iStart = 0;
 		float start = 0.f;
 		float peak = 0.f;
@@ -361,8 +347,8 @@ namespace temp {
 
 	struct autolayer_t {
 		uint64_t guidSequence;
-		short iSequence;
-		short iPose;
+		int16_t iSequence;
+		int16_t iPose;
 		int flags;
 		float start;
 		float peak;
@@ -446,15 +432,15 @@ namespace temp {
 
 	struct bone_t {
 		std::string name;
-		int parent;
-		uint32_t flags;
-		int32_t bonecontroller[6] = {-1, -1, -1, -1, -1, -1};
-		int32_t proctype;
-		int32_t procindex;
-		int32_t physicsbone;
+		int32_t parent = -1;
+		uint32_t flags = 0u;
+		int32_t bonecontroller[6] = { -1, -1, -1, -1, -1, -1 };
+		int32_t proctype = 0;
+		int32_t procindex = 0;
+		int32_t physicsbone = 0;
 		std::string surfaceprop;
-		int32_t contents;
-		int32_t surfacepropLookup;
+		int32_t contents = 0;
+		int32_t surfacepropLookup = 0;
 
 		Vector3 pos{};
 		Quaternion q{};
@@ -510,15 +496,17 @@ namespace temp {
 	};
 
 
-	struct rig_t{
-		std::string rrigpath; // system path
+	struct rig_t {
+		std::string rrigpath;
 		std::string rsonpath;
 		std::vector<std::string> rseqpaths;
+		std::vector<std::string> rigpaths;
+		//std::vector<std::string> materialpaths;
 
 		temp::rigdesc_t hdr{};
-		std::string name = "CANNOT LOAD RRIG NAME"; // internal name
+		std::string name = "CANNOT LOAD RRIG NAME";
 		std::vector<temp::bone_t> bones;
-		std::vector<temp::hitboxsets_t> hitboxsets; 
+		std::vector<temp::hitboxsets_t> hitboxsets;
 		std::vector<uint8_t> bonebyname;
 		uint16_t ignorenode = 0;
 		std::vector<temp::node_t> nodes;
@@ -527,7 +515,7 @@ namespace temp {
 		std::vector<temp::Sequence> sequences;
 	};
 
-	struct animblock_t{
+	struct animblock_t {
 		uint8_t comptype;
 		uint32_t startframe;
 		uint32_t endframe;
@@ -579,12 +567,11 @@ bool allEqualVector(const std::vector<Vector4>& v, size_t start, size_t end, int
 void findMinMaxSIMD(const std::vector<Vector3>& v, size_t start, size_t end, Vector3& minOut, Vector3& maxOut);
 void findMinMaxSIMD(const std::vector<Vector4>& v, size_t start, size_t end, Vector4& minOut, Vector4& maxOut);
 
-void SetFlagForDescendants(temp::rig_t& rig, int parentIdx, int flag);
+float HalfToFloat(const uint16_t h);
+uint16_t FloatToHalf(float value);
+void SinCos(float radians, float* sine, float* cosine);
 
-inline Vector48 Pack48(Vector3 a);
-inline Vector3 Unpack48(Vector48 a);
-
-Vector48 Pack48(Vector3 a) {
+inline Vector48 Pack48(Vector3 a) {
 	Vector48  out{};
 	out.x = FloatToHalf(a.x);
 	out.y = FloatToHalf(a.y);
@@ -592,13 +579,17 @@ Vector48 Pack48(Vector3 a) {
 	return out;
 }
 
-Vector3 Unpack48(Vector48 a) {
+inline Vector3 Unpack48(Vector48 a) {
 	Vector3 out{};
 	out.x = HalfToFloat(static_cast<uint16_t>(a.x));
 	out.y = HalfToFloat(static_cast<uint16_t>(a.y));
 	out.z = HalfToFloat(static_cast<uint16_t>(a.z));
 	return out;
 }
+
+
+// r5
+uint64_t StringToGuid(const char* string);
 
 // studio
 void QuaternionMatrix(const Quaternion& q, Matrix3x4_t& matrix);

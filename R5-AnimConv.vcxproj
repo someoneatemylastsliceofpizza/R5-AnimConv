@@ -26,10 +26,12 @@
     <ClCompile Include="src\rseq\rseq.cpp" />
     <ClCompile Include="src\rseq\rseq_functions.cpp" />
     <ClCompile Include="src\utils\math_helper.cpp" />
+    <ClCompile Include="src\utils\misc.cpp" />
     <ClCompile Include="src\utils\print.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="src\utils\rson_parser.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="resource.h" />
@@ -39,7 +41,9 @@
     <ClInclude Include="src\pch.h" />
     <ClInclude Include="src\rrig\rrig.h" />
     <ClInclude Include="src\rseq\rseq.h" />
+    <ClInclude Include="src\utils\misc.h" />
     <ClInclude Include="src\utils\print.h" />
+    <ClInclude Include="src\utils\rson_parser.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="R5-AnimConv.rc" />
@@ -97,12 +101,13 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IntDir>cache\$(Platform)\$(ShortProjectName)\$(Configuration)\</IntDir>
+    <IntDir>bin-int\$(Platform)\$(ShortProjectName)\$(Configuration)\</IntDir>
     <IncludePath>$(ProjectDir);$(ProjectDir)\src;$(IncludePath)</IncludePath>
     <OutDir>$(SolutionDir)bin\$(Configuration)_$(Platform)\</OutDir>
+    <EnableMicrosoftCodeAnalysis>true</EnableMicrosoftCodeAnalysis>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IntDir>cache\$(Platform)\$(ShortProjectName)\$(Configuration)\</IntDir>
+    <IntDir>bin-int\$(Platform)\$(ShortProjectName)\$(Configuration)\</IntDir>
     <IncludePath>$(ProjectDir);$(ProjectDir)\src;$(IncludePath)</IncludePath>
     <OutDir>$(SolutionDir)bin\$(Configuration)_$(Platform)\</OutDir>
   </PropertyGroup>
@@ -149,7 +154,7 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Create</PrecompiledHeader>
-      <PrecompiledHeaderFile>src/pch.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
@@ -171,7 +176,7 @@
       </AdditionalIncludeDirectories>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <PrecompiledHeader>Create</PrecompiledHeader>
-      <PrecompiledHeaderFile>src/pch.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

@@ -1,6 +1,4 @@
-#include "src/pch.h"
-
-// math
+#include <pch.h>
 
 float HalfToFloat(const uint16_t h) {
 	uint16_t h_exp = (h & 0x7C00u) >> 10;

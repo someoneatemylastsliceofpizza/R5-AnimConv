@@ -1,5 +1,6 @@
-#include "src/pch.h"
+#include <pch.h>
 #include <rseq/rseq.h>
+#include <rrig/rrig.h>
 
 void ParseMDL_v49(char* buffer, temp::rig_t& rig, std::string output_dir, std::string override_rrig_path, std::string override_rseq_path) {
 	p2::studiohdr_t* pMdlHdr = reinterpret_cast<p2::studiohdr_t*>(buffer);
@@ -268,12 +269,12 @@ void ParseMDL_v49(char* buffer, temp::rig_t& rig, std::string output_dir, std::s
 		std::vector<int> blends_index_map;
 		std::unordered_map<int, int> blendIndex;
 		for (int blend_idx = 0; blend_idx < seqDesc->numblends; ++blend_idx) {
-			int val = studio_blends[blend_idx];
+			int val = studio_blends[blend_idx]; 
 			auto [it, inserted] = blendIndex.emplace(val, blends_index_map.size());
 			if (inserted) blends_index_map.push_back(val);
 			seq.blends.push_back(it->second);
 		}
-		seq.numuniqueblends = blends_index_map.size();
+		seq.numuniqueblends = static_cast<uint32_t>(blends_index_map.size());
 
 		for (int blend_idx = 0; blend_idx < seq.numuniqueblends; blend_idx++) {
 			if (seqDesc->flags & 0x20) {
@@ -281,27 +282,27 @@ void ParseMDL_v49(char* buffer, temp::rig_t& rig, std::string output_dir, std::s
 			}
 
 			//animdesc 
-			short anim_idx = studio_blends[blend_idx];
+			int16_t anim_idx = studio_blends[blend_idx];
 
 			temp::animdesc_t anim;
 			auto* animDesc = &pStudioAnimDesc[anim_idx];
 			anim.name = STRING_FROM_IDX(animDesc, animDesc->sznameindex);
 			anim.fps = animDesc->fps;
-			anim.flags = (animDesc->flags & 0x20 ? 0x0 : 0x20000) | (animDesc->flags & ~0x20) | (seq.IsAdditive() * 0x4);
+			anim.flags = (animDesc->flags & 0x20 ? 0x0 : 0x20000) | (animDesc->flags & ~0x20) | (seq.IsAdditive() * r5::ANIM_DELTA);
 			anim.numframes = animDesc->numframes;
 			anim.InitData(pMdlHdr->numbones, rig, anim.IsAdditive());
 			verbose("      L-> %s (%d sections)\n", anim.name.c_str(), animDesc->sectionframes > 0 ? (animDesc->numframes / animDesc->sectionframes) + 2 : 1);
 
 			p2::mstudioanimsections_t* animsections = nullptr;
-			size_t num_sections = 1;
+			int num_sections = 1;
 			if (animDesc->sectionindex) {
 				num_sections = GetSectionCount(*animDesc);
 				animsections = reinterpret_cast<p2::mstudioanimsections_t*>((char*)animDesc + animDesc->sectionindex);
 			}
 
-			int sectionbaseframe = 0;
+			uint32_t sectionbaseframe = 0;
 			for (int section = 0; section < num_sections; section++) {
-				int sectionframes = GetSectionLength(*animDesc, section, num_sections);
+				uint32_t sectionframes = GetSectionLength(*animDesc, section, num_sections);
 
 				for (uint32_t localframe = 0; localframe < sectionframes; localframe++) {
 					uint32_t frame = sectionbaseframe + localframe;
@@ -345,7 +346,7 @@ void ParseMDL_v49(char* buffer, temp::rig_t& rig, std::string output_dir, std::s
 								float v1 = 0;
 								if (pMdlRotV[j]) {
 									auto* panimvalue = reinterpret_cast<r5::anim::mstudioanimvalue_t*>((char*)pMdlRotV + pMdlRotV[j]);
-									ExtractAnimValue_v49(localframe, panimvalue, studioRotScale[v49AnimRle->bone][j], v1);
+									p2::RLE::ExtractAnimValue(localframe, panimvalue, studioRotScale[v49AnimRle->bone][j], v1);
 								}
 								if (anim.IsAdditive()) trackval->rot[frame][j] = rig.bones[v49AnimRle->bone].rot[j] + v1;
 								else trackval->rot[frame][j] += v1;
@@ -360,7 +361,7 @@ void ParseMDL_v49(char* buffer, temp::rig_t& rig, std::string output_dir, std::s
 								float v1 = 0;
 								if (pMdlPosV[j]) {
 									auto* panimvalue = reinterpret_cast<r5::anim::mstudioanimvalue_t*>((char*)pMdlPosV + pMdlPosV[j]);
-									ExtractAnimValue_v49(localframe, panimvalue, studioPosScale[v49AnimRle->bone][j], v1);
+									p2::RLE::ExtractAnimValue(localframe, panimvalue, studioPosScale[v49AnimRle->bone][j], v1);
 								}
 								if (anim.IsAdditive()) trackval->pos[frame][j] = rig.bones[v49AnimRle->bone].pos[j] + v1;
 								else trackval->pos[frame][j] += v1;
@@ -376,43 +377,8 @@ void ParseMDL_v49(char* buffer, temp::rig_t& rig, std::string output_dir, std::s
 
 			//TODO:
 			//ikrules
-			/*
-			rAnimDesc->numikrules = animDesc->numikrules;
-			rAnimDesc->ikruleindex = pData - pBase - rseq_blends[blend_idx];
-			p2::mstudioikrule_t* v49ikrule = reinterpret_cast<p2::mstudioikrule_t*>(buffer - animbase_ptr + animDesc->ikruleindex);
-			r5::anim::v7::mstudioikrule_t* ikrule = reinterpret_cast<r5::anim::v7::mstudioikrule_t*>(pData);
-			for (int i = 0; i < rAnimDesc->numikrules; i++) {
-				ikrule[i].chain = v49ikrule[i].chain;
-				ikrule[i].type = 4; //v53ikrule[i].type;
-				ikrule[i].bone = v49ikrule[i].bone;
-				ikrule[i].slot = v49ikrule[i].slot;
-				ikrule[i].height = v49ikrule[i].height;
-				ikrule[i].radius = v49ikrule[i].radius;
-				ikrule[i].floor = v49ikrule[i].floor;
-				ikrule[i].pos = v49ikrule[i].pos;
-				ikrule[i].q = v49ikrule[i].q;
-				ikrule[i].start = v49ikrule[i].start;
-				ikrule[i].peak = v49ikrule[i].peak;
-				ikrule[i].tail = v49ikrule[i].tail;
-				ikrule[i].end = v49ikrule[i].end;
-				ikrule[i].contact = v49ikrule[i].contact;
-				ikrule[i].drop = v49ikrule[i].drop;
-					ikrule.top = ikrules[i].top;
-				ikrule[i].szattachmentindex = 0; //
-				//ikrule[i].endHeight = v49ikrule[i].;
-			}
-			pData += sizeof(r5::anim::v7::mstudioikrule_t) * rAnimDesc->numikrules;
-			*/
-			/*//TODO:
-			for (int i = 0; i < rAnimDesc->numikrules; i++) {
-				//ikrule[i].compressedikerrorindex = pData - (char*)&ikrule[i];
-				//ikrule frames...
-			}
+			//movements
 
-			// movement
-			rAnimDesc->framemovementindex = (char*)pData - (char*)rAnimDesc;
-			//r5::anim::v7::mstudiomovement_t* movementdata = reinterpret_cast<r5::anim::v7::mstudiomovement_t*>(rAnimDesc->movementindex);
-			//pData += sizeof(r5::anim::v7::mstudiomovement_t) * Desc->;*/
 			seq.anims.push_back(anim);
 		}
 		if (!_enable_verbose && pMdlHdr->numlocalseq) bar.AddAndPrint();
@@ -669,7 +635,7 @@ void ParseMDL_v53(char* buffer, temp::rig_t& rig, std::string output_dir, std::s
 			if (inserted) blends_index_map.push_back(val);
 			seq.blends.push_back(it->second);
 		}
-		seq.numuniqueblends = blends_index_map.size();
+		seq.numuniqueblends = static_cast<uint32_t>(blends_index_map.size());
 
 		for (int blend_idx = 0; blend_idx < seqDesc->numblends; blend_idx++) {
 			if (seqDesc->flags & 0x20) {
@@ -677,14 +643,14 @@ void ParseMDL_v53(char* buffer, temp::rig_t& rig, std::string output_dir, std::s
 			}
 
 			//animdesc 
-			short anim_idx = studio_blends[blend_idx];
+			int16_t anim_idx = studio_blends[blend_idx];
 
 			temp::animdesc_t anim;
 			auto* animDesc = &pStudioAnimDesc[anim_idx];
 			char* pAnimBase = reinterpret_cast<char*>((char*)animDesc - animDesc->baseptr);
 			anim.name = STRING_FROM_IDX(animDesc, animDesc->sznameindex);
 			anim.fps = animDesc->fps;
-			anim.flags = (animDesc->flags & 0x20 ? 0x0 : 0x20000) | (animDesc->flags & ~0x20) | (seq.IsAdditive() * 0x4);
+			anim.flags = (animDesc->flags & 0x20 ? 0x0 : 0x20000) | (animDesc->flags & ~0x20) | (seq.IsAdditive() * r5::ANIM_DELTA);
 			anim.numframes = animDesc->numframes;
 			anim.InitData(pMdlHdr->numbones, rig, anim.IsAdditive());
 			verbose("      L-> %s (%d sections)\n", anim.name.c_str(), animDesc->sectionframes > 0 ? (animDesc->numframes / animDesc->sectionframes) + 2 : 1);
@@ -696,9 +662,9 @@ void ParseMDL_v53(char* buffer, temp::rig_t& rig, std::string output_dir, std::s
 				animsections = reinterpret_cast<uint32_t*>((char*)animDesc + animDesc->sectionindex);
 			}
 
-			int sectionbaseframe = 0;
+			uint32_t sectionbaseframe = 0;
 			for (int section = 0; section < num_sections; section++) {
-				int sectionframes = GetSectionLength(*animDesc, section, num_sections);
+				uint32_t sectionframes = GetSectionLength(*animDesc, section, num_sections);
 
 				for (uint32_t localframe = 0; localframe < sectionframes; localframe++) {
 					uint32_t frame = sectionbaseframe + localframe;
@@ -752,7 +718,7 @@ void ParseMDL_v53(char* buffer, temp::rig_t& rig, std::string output_dir, std::s
 								float v1 = 0;
 								if (pMdlRotV[j]) {
 									auto* panimvalue = reinterpret_cast<r5::anim::mstudioanimvalue_t*>((char*)pMdlRotV + pMdlRotV[j]);
-									ExtractAnimValue_v49(localframe, panimvalue, pBones[v53AnimRle->bone].rotscale[j], v1);
+									p2::RLE::ExtractAnimValue(localframe, panimvalue, pBones[v53AnimRle->bone].rotscale[j], v1);
 								}
 								trackval->rot[frame][j] += v1;
 							}
@@ -765,7 +731,7 @@ void ParseMDL_v53(char* buffer, temp::rig_t& rig, std::string output_dir, std::s
 								float v1 = 0;
 								if (pMdlPosV[j]) {
 									auto* panimvalue = reinterpret_cast<r5::anim::mstudioanimvalue_t*>((char*)pMdlPosV + pMdlPosV[j]);
-									ExtractAnimValue_v49(localframe, panimvalue, v53AnimRle->posscale, v1);
+									p2::RLE::ExtractAnimValue(localframe, panimvalue, v53AnimRle->posscale, v1);
 								}
 								trackval->pos[frame][j] += v1;
 							}
@@ -778,7 +744,7 @@ void ParseMDL_v53(char* buffer, temp::rig_t& rig, std::string output_dir, std::s
 								float v1 = 0;
 								if (pMdlSclV[j]) {
 									auto* panimvalue = reinterpret_cast<r5::anim::mstudioanimvalue_t*>((char*)pMdlSclV + pMdlSclV[j]);
-									ExtractAnimValue_v49(localframe, panimvalue, pBones[v53AnimRle->bone].scalescale[j], v1);
+									p2::RLE::ExtractAnimValue(localframe, panimvalue, pBones[v53AnimRle->bone].scalescale[j], v1);
 								}
 								trackval->scl[frame][j] += v1;
 							}
@@ -793,6 +759,7 @@ void ParseMDL_v53(char* buffer, temp::rig_t& rig, std::string output_dir, std::s
 			// ikrules
 			if (animDesc->numikrules) {
 				auto* ikrules = reinterpret_cast<r2::mstudioikrule_t*>((char*)animDesc + animDesc->ikruleindex);
+				bool d = (anim.name == "@ref_reactions");
 				for (int i = 0; i < animDesc->numikrules; i++) {
 					temp::ikrule_t ikrule{};
 					ikrule.index = ikrules[i].index;
@@ -819,7 +786,7 @@ void ParseMDL_v53(char* buffer, temp::rig_t& rig, std::string output_dir, std::s
 					// parse ikrule frames
 					if (ikrules[i].compressedikerrorindex) {
 						if (ikrules[i].end < ikrules[i].start) ikrules[i].end += 1;
-						int32_t numikframes = (float)anim.numframes * (std::min({ ikrules[i].end , 1.f }) - ikrules[i].start);
+						int32_t numikframes = static_cast<int32_t>(anim.numframes * (std::min({ ikrules[i].end , 1.f }) - ikrules[i].start));
 						ikrule.ikruledata.resize(anim.numframes);
 						
 						auto* frameshdr = reinterpret_cast<r2::mstudiocompressedikerror_t*>((char*)&ikrules[i] + ikrules[i].compressedikerrorindex);
@@ -829,9 +796,9 @@ void ParseMDL_v53(char* buffer, temp::rig_t& rig, std::string output_dir, std::s
 								if (frameshdr->offset[idx]) {
 									auto* panimvalue = reinterpret_cast<r5::anim::mstudioanimvalue_t*>((char*)frameshdr + frameshdr->offset[idx]);
 									if (idx < 3)
-										ExtractAnimValue_v49(frame, panimvalue, frameshdr->posscale[idx], ikrule.ikruledata.pos[ikrules[i].iStart + frame][idx]);
+										p2::RLE::ExtractAnimValue(frame, panimvalue, frameshdr->posscale[idx], ikrule.ikruledata.pos[ikrules[i].iStart + frame][idx]);
 									else
-										ExtractAnimValue_v49(frame, panimvalue, frameshdr->rotscale[idx - 3], ikrule.ikruledata.rot[ikrules[i].iStart + frame][idx - 3]);
+										p2::RLE::ExtractAnimValue(frame, panimvalue, frameshdr->rotscale[idx - 3], ikrule.ikruledata.rot[ikrules[i].iStart + frame][idx - 3]);
 								}
 							}
 						};
@@ -842,7 +809,7 @@ void ParseMDL_v53(char* buffer, temp::rig_t& rig, std::string output_dir, std::s
 			}
 
 			// movement
-			if ((animDesc->flags & 0x40000) && animDesc->framemovementindex) {
+			if ((animDesc->flags & r5::ANIM_FRAMEMOVEMENT) && animDesc->framemovementindex) {
 				auto* frameshdr = reinterpret_cast<r2::mstudioframemovement_t*>((char*)animDesc + animDesc->framemovementindex);
 				temp::framemovement_t movement{};
 				movement.scale = frameshdr->scale;
@@ -853,83 +820,12 @@ void ParseMDL_v53(char* buffer, temp::rig_t& rig, std::string output_dir, std::s
 					for (int idx = 0; idx < 4; idx++) {
 						if (frameshdr->offset[idx]) {
 							auto* panimvalue = reinterpret_cast<r5::anim::mstudioanimvalue_t*>((char*)frameshdr + frameshdr->offset[idx]);
-							ExtractAnimValue_v49(frame, panimvalue, frameshdr->scale[idx], movement.movementdata[frame][idx]);
+							p2::RLE::ExtractAnimValue(frame, panimvalue, frameshdr->scale[idx], movement.movementdata[frame][idx]);
 						}
 					}
 				}
 				anim.movement = movement;
 			}
-
-			/*
-			// movement
-			rAnimDesc->framemovementindex = (char*)pData - (char*)rAnimDesc;
-			if (pStudioAnimDesc[anim_idx].framemovementindex) {
-				int mmSectionFrames = 254;
-
-				r2::framemovement_t* v53Movement = PTR_FROM_IDX(r2::framemovement_t, &pStudioAnimDesc[anim_idx], pStudioAnimDesc[anim_idx].framemovementindex);
-				r5::anim::v7::mstudioframemovement_t* v54Movement = reinterpret_cast<r5::anim::v7::mstudioframemovement_t*>(pData);
-				v54Movement->scale.x = v53Movement->scale.x;
-				v54Movement->scale.y = v53Movement->scale.y;
-				v54Movement->scale.z = v53Movement->scale.z;
-				v54Movement->scale.w = v53Movement->scale.w;
-				v54Movement->sectionframes = (pStudioAnimDesc[anim_idx].numframes < mmSectionFrames) ? pStudioAnimDesc[anim_idx].numframes : mmSectionFrames;
-				pData += sizeof(r5::anim::v7::mstudioframemovement_t);
-
-				uint32_t mmNumSections = (pStudioAnimDesc[anim_idx].numframes - 1) / mmSectionFrames + 1;
-				uint32_t* mmSectionIndexes = reinterpret_cast<uint32_t*>(pData);
-				pData += mmNumSections * sizeof(uint32_t);
-
-				// aquiring movement values
-				std::vector<int> animArray_x{};
-				std::vector<int> animArray_y{};
-				std::vector<int> animArray_z{};
-				std::vector<int> animArray_yaw{};
-
-				for (int i = 0; i < 4; i++) {
-					int read = v53Movement->offset[i];
-					switch (i) {
-					case 0:
-						animArray_x = getAnimArray(&read, (char*)v53Movement, pStudioAnimDesc[anim_idx].numframes, false);
-						break;
-					case 1:
-						animArray_y = getAnimArray(&read, (char*)v53Movement, pStudioAnimDesc[anim_idx].numframes, false);
-						break;
-					case 2:
-						animArray_z = getAnimArray(&read, (char*)v53Movement, pStudioAnimDesc[anim_idx].numframes, false);
-						break;
-					case 3:
-						animArray_yaw = getAnimArray(&read, (char*)v53Movement, pStudioAnimDesc[anim_idx].numframes, false);
-						break;
-					}
-				}
-
-				std::vector<std::vector<int>> animArray = { animArray_x , animArray_y, animArray_z, animArray_yaw };
-
-				// write movement values
-				for (int i = 0; i < mmNumSections; i++) {
-					std::vector<int> mmOffsets_tmp{};
-					mmSectionIndexes[i] = pData - (char*)v54Movement;
-
-					uint16_t* mmOffsets = reinterpret_cast<uint16_t*>(pData);
-					pData += 4 * sizeof(short);
-
-					int mmNumFrames = v54Movement->sectionframes;
-					if (i + 1 == mmNumSections) mmNumFrames = pStudioAnimDesc[anim_idx].numframes - (i * mmSectionFrames);
-
-					size_t size = 0;
-
-					for (int j = 0; j < 4; j++) {
-						if (v53Movement->offset[j]) {
-							ProcessArrayAnimValue(pData, animArray[j], &size, (r5::anim::studioanimvalue_ptr_t*)mmOffsets, mmNumFrames, mmOffsets_tmp, 1.f, 1.f, 0.0f, false);
-						}
-						else {
-							mmOffsets_tmp.push_back(0);
-						}
-					}
-					for (int j = 0; j < 4; j++) mmOffsets[j] = mmOffsets_tmp.at(j) * 2;
-					pData += size;
-				}
-			}*/
 			seq.anims.push_back(anim);
 		}
 		if (!_enable_verbose && pMdlHdr->numlocalseq) bar.AddAndPrint();

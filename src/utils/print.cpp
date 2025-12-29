@@ -1,9 +1,9 @@
 #include <cstdarg>
-#include "src/pch.h"
+#include <pch.h>
 #include "print.h"
 
 bool _enable_verbose = false;
-bool is_no_entry = false;
+bool _enable_no_entry = false;
 
 void verbose(const char* format, ...) {
     if (_enable_verbose) {
@@ -15,9 +15,9 @@ void verbose(const char* format, ...) {
 }
 
 // Progress bar class
-ProgressBar::ProgressBar(int total) : total(total) {}
+ProgressBar::ProgressBar(size_t total) : total(total) {}
 
-void ProgressBar::Add(int val) {
+void ProgressBar::Add(size_t val) {
     current += val;
 }
 
@@ -50,7 +50,7 @@ void ProgressBar::Print() {
     std::cout.flush();
 }
 
-void ProgressBar::AddAndPrint(int val) {
+void ProgressBar::AddAndPrint(size_t val) {
     ProgressBar::Add(val);
     ProgressBar::Print();
 }

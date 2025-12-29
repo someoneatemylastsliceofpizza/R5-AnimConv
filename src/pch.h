@@ -1,3 +1,4 @@
+#pragma once
 #include <iostream>  
 #include <fstream>
 #include <vector>
@@ -10,7 +11,6 @@
 #include <execution>
 #include <future>
 #include <mutex>
-
 #include <define.h>
 #include <mdl/studio.h>
 #include <utils/print.h>
