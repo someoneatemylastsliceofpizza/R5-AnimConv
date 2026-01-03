@@ -166,6 +166,7 @@ inline Quaternion UnpackQuat64(Quaternion64 q64) {
 	q.y = q64.decode(q64.y);
 	q.z = q64.decode(q64.z);
 	float w_sq = 1.0f - (q.x * q.x + q.y * q.y + q.z * q.z);
+	w_sq = std::max(w_sq, 0.0f);
 	q.w = sqrt(w_sq);
 
 	if (q64.wneg)
